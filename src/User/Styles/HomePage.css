@@ -1,0 +1,247 @@
+/* Colors from palette */
+:root {
+  --dark-purple: #1a0033;
+  --deep-violet: #3b007a;
+  --medium-purple: #5c1ea8;
+  --bright-purple: #8a3ede;
+  --vibrant-blue-purple: #4d38d4;
+  --soft-blue: #5766eb;
+  --black: #000000;
+}
+
+/* Global Styles */
+body,
+html,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: Arial, sans-serif;
+  color: var(--soft-blue);
+  background: linear-gradient(
+    135deg,
+    var(--deep-violet) 0%,
+    var(--bright-purple) 25%,
+    var(--vibrant-blue-purple) 50%,
+    var(--soft-blue) 75%,
+    var(--black) 100%
+  );
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  user-select: none;
+}
+
+/* NAV BAR */
+nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background-color: rgba(26, 0, 51, 0.85); /* darkPurple transparent */
+  display: flex;
+  align-items: center;
+  padding: 0 1rem;
+  z-index: 1000;
+  border-bottom: 1px solid var(--deep-violet);
+}
+
+.nav-left,
+.nav-center,
+.nav-right {
+  display: flex;
+  align-items: center;
+}
+
+.nav-left {
+  flex: 1;
+}
+
+.nav-center {
+  flex: 1;
+  justify-content: center;
+}
+
+.nav-right {
+  flex: 1;
+  justify-content: flex-end;
+  position: relative;
+}
+
+/* Navigation Icon */
+.nav-icon {
+  width: 30px;
+  height: 30px;
+  cursor: pointer;
+  stroke: var(--soft-blue);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: stroke 0.3s ease;
+}
+.nav-icon:hover,
+.nav-icon:focus {
+  stroke: var(--bright-purple);
+  outline: none;
+}
+
+/* Heading - CAMPUS CORE in Bebas Neue */
+h1 {
+  font-family: "Bebas Neue", cursive;
+  font-weight: 400;
+  font-size: 2.5rem;
+  color: var(--soft-blue);
+  margin: 0;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* Side Panel Slide-in */
+.side-panel {
+  position: fixed;
+  top: 60px;
+  left: 0;
+  bottom: 0;
+  width: 250px;
+  background-color: rgba(26, 0, 51, 0.95);
+  box-shadow: 2px 0 5px var(--deep-violet);
+  transform: translateX(-100%);
+  transition: transform 0.3s ease;
+  z-index: 1100;
+  padding: 1rem;
+  color: var(--soft-blue);
+  font-size: 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+  user-select: none;
+}
+.side-panel.open {
+  transform: translateX(0);
+}
+.side-panel a {
+  color: var(--soft-blue);
+  text-decoration: none;
+  cursor: pointer;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.2s ease;
+}
+.side-panel a:hover {
+  border-bottom: 1px solid var(--bright-purple);
+}
+
+/* Dropdown container */
+
+.dropdown-container {
+  position: relative;
+  display: inline-block;
+  user-select: none;
+}
+
+/* Person icon */
+.person-icon {
+  width: 28px;
+  height: 28px;
+  stroke: var(--soft-blue);
+  fill: none;
+  stroke-width: 2;
+  cursor: pointer;
+  transition: stroke 0.3s ease;
+  border-radius: 4px;
+}
+.person-icon:hover,
+.person-icon:focus {
+  stroke: var(--bright-purple);
+  outline: none;
+}
+
+/* Dropdown menu */
+.dropdown-menu {
+  position: absolute;
+  right: 0;
+  top: 36px;
+  background: rgba(26, 0, 51, 0.95);
+  border: 1px solid var(--deep-violet);
+  border-radius: 5px;
+  padding: 0.25rem 0;
+  display: none;
+  min-width: 140px;
+  box-shadow: 0 0 10px var(--deep-violet);
+  z-index: 1200;
+  user-select: none;
+}
+
+.dropdown-menu.open {
+  display: block;
+}
+
+.dropdown-item {
+  color: var(--soft-blue);
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  font-size: 1rem;
+  white-space: nowrap;
+  transition: background-color 0.2s ease;
+}
+
+.dropdown-item:hover {
+  background-color: var(--bright-purple);
+  color: var(--black);
+}
+
+/* Main section */
+main {
+  margin-top: 60px;
+  padding: 2rem;
+  min-height: calc(100vh - 60px - 50px);
+  color: var(--soft-blue);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+main h2 {
+  font-size: 2.2rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+  color: var(--bright-purple);
+  user-select: text;
+}
+main p {
+  max-width: 600px;
+  font-size: 1.1rem;
+  line-height: 1.5;
+  user-select: text;
+  color: var(--soft-blue);
+}
+
+/* Footer */
+footer {
+  height: 50px;
+  background-color: var(--dark-purple);
+  color: var(--soft-blue);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  user-select: none;
+  font-size: 1rem;
+  border-top: 1px solid var(--deep-violet);
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  nav {
+    padding: 0 0.5rem;
+  }
+  main h2 {
+    font-size: 1.7rem;
+  }
+  main p {
+    font-size: 1rem;
+  }
+  .side-panel {
+    width: 200px;
+  }
+}
