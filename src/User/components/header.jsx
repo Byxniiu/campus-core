@@ -8,8 +8,8 @@ const Header = () => {
     // Main navigation links based on platform modules
     const navLinks = [
         { name: 'Home', href: '/' },
-        { name: 'Study Pods', href: '/studypods' }, // Based on Social Connect & Study Pods [cite: 33]
-        { name: 'Counselling', href: '/counseling' }, // Based on Secure Counselling Request System [cite: 37]
+        { name: 'Study Pods', href: '/study-pod-list' }, // Based on Social Connect & Study Pods [cite: 33]
+        { name: 'Counselling', href: '/counseling-form' }, // Based on Secure Counselling Request System [cite: 37]
         { name: 'Timetable', href: '/timetable' },
     ];
 

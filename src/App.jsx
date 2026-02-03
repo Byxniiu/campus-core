@@ -10,7 +10,6 @@ import ClassSchedulePage from './User/pages/ClassSchedulePage'
 import EmergencyAssistPage from './User/pages/EmergencyAssistPage'
 import CounselingForm from './User/pages/CounselingForm'
 import CounselingStats from './User/pages/CounselingStats'
-import CounselingChat from './User/pages/CounselingChat'
 import SOSSystem from './User/pages/SOSSystem'
 import StudyPods from './User/pages/StudyPods'
 import StudyPodCreate from './User/pages/StudyPodCreate'
@@ -19,12 +18,20 @@ import StudyMaterials from './User/pages/StudyMaterials'
 import AdminLogin from './Admin/AdminLogin'
 import AdminCoreDashboard from './Admin/AdminCoreDashboard'
 import FacultyDashboard from './Faculty/FacultyDashboard'
+import CounselorLogin from './Counselors/CounselorLogin'
+import CounselorHome from './Counselors/CounselorHome'
+import FacultyLogin from './Faculty/FacultyLogin'
+import StaffLogin from './Non-Teaching Staff/StaffLogin'
+import StaffHomepage from './Non-Teaching Staff/StaffHomepage'
+
+import Footer from './User/components/footer'
 
 
 
 function App() {
 
   return (
+    <div className="App">
     <>
     {/*Home Page */}
     <Routes>
@@ -39,7 +46,6 @@ function App() {
       <Route path='/emergency-assist' element={<EmergencyAssistPage/>}/>
       <Route path='/counseling-form' element={<CounselingForm/>}/>
       <Route path='/counseling-stats' element={<CounselingStats/>}/>
-      <Route path='/counseling-chat' element={<CounselingChat/>}/>
       <Route path='/sos-system' element={<SOSSystem/>}/>
       <Route path='study-pod-list' element={<StudyPods/>}/>
       <Route path='/study-pod-create' element={<StudyPodCreate/>}/>
@@ -51,10 +57,21 @@ function App() {
       <Route path='/admin-core-dashboard' element={<AdminCoreDashboard/>}/>
 
       {/*FACULTIES*/}
+      <Route path='/faculty-login' element={<FacultyLogin/>}/>
       <Route path='/faculty-dashboard' element={<FacultyDashboard/>}/>
+
+      {/*Counselor*/}
+      <Route path='/counselor-login' element={<CounselorLogin/>}/>
+      <Route path='/counselor-home' element={<CounselorHome/>}/>
+
+      {/*NON-TEACHING STAFFS*/}
+      <Route path='/non-teaching-login' element={<StaffLogin/>}/>
+      <Route path='/non-teaching-homepage' element={<StaffHomepage/>}/>
     </Routes> 
       
     </>
+    <Footer />
+    </div>
   )
 }
 
