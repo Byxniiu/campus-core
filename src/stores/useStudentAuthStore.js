@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export const useAuthStore = create(
+export const useStudentAuthStore = create(
   persist(
     (set, get) => ({
       // State
@@ -21,7 +21,7 @@ export const useAuthStore = create(
         }),
 
       login: (userData, accessToken, refreshToken) => {
-        console.log('🏪 AuthStore.login() called with:', {
+        console.log('🏪 StudentAuthStore.login() called with:', {
           user: userData,
           hasAccessToken: !!accessToken,
           hasRefreshToken: !!refreshToken,
@@ -34,7 +34,7 @@ export const useAuthStore = create(
           isAuthenticated: true,
         });
 
-        console.log('✅ AuthStore.login() state updated');
+        console.log('✅ StudentAuthStore.login() state updated');
       },
 
       logout: () => {
@@ -59,7 +59,7 @@ export const useAuthStore = create(
       isAuth: () => get().isAuthenticated,
     }),
     {
-      name: 'auth-storage', // localStorage key
+      name: 'student-auth', // localStorage key for students
       partialize: (state) => ({
         token: state.token,
         refreshToken: state.refreshToken,

@@ -1,110 +1,158 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import toast from 'react-hot-toast';
+import { authAPI } from '../api/auth';
+import { GraduationCap, LogIn, Lock, ChevronRight, UserCheck } from 'lucide-react';
 
-const FacultyLogin = ({ onLoginSuccess }) => {
-  const [step, setStep] = useState(1); // 1: Email/ID, 2: OTP
-  const [facultyId, setFacultyId] = useState('');
-  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+const FacultyLogin = () => {
+  const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    identifier: '',
+    password: '',
+  });
 
-  // Handle OTP input auto-tabbing
-  const handleOtpChange = (element, index) => {
-    if (isNaN(element.value)) return false;
-    let newOtp = [...otp];
-    newOtp[index] = element.value;
-    setOtp(newOtp);
-
-    // Auto-focus logic
-    if (element.nextSibling && element.value !== '') {
-      element.nextSibling.focus();
-    }
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
-  const handleInitialSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (facultyId.length > 2) {
-      setStep(2);
-    }
-  };
+    setIsLoading(true);
 
-  const handleVerifyOtp = (e) => {
-    e.preventDefault();
-    const finalOtp = otp.join('');
-    // Demo bypass code: 888888
-    if (finalOtp === '888888') {
-      onLoginSuccess();
-    } else {
-      alert("Invalid Code. For demo purposes, use: 888888");
+    try {
+      const response = await authAPI.login(formData.identifier, formData.password);
+
+      if (response.success) {
+        toast.success('Access granted. Authenticating...');
+        const { accessToken, refreshToken, user } = response.data;
+
+        localStorage.setItem('faculty_token', accessToken);
+        localStorage.setItem('faculty_refresh_token', refreshToken);
+        localStorage.setItem('faculty_user', JSON.stringify(user));
+
+        navigate('/faculty-dashboard');
+      }
+    } catch (error) {
+      console.error('Faculty login error:', error);
+
+      if (error.pendingApproval) {
+        toast.error('Identity pending administrator authorization');
+        navigate('/faculty-waiting-approval', {
+          state: { email: error.data?.email },
+        });
+        return;
+      }
+
+      toast.error(error.message || 'Authentication refused');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6 font-sans">
-      <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-[3rem] p-10 shadow-2xl relative overflow-hidden">
-        
-        {/* Faculty Brand Accent */}
-        <div className="absolute -top-24 -right-24 w-48 h-48 bg-emerald-500/5 rounded-full blur-3xl"></div>
-        
-        <div className="relative z-10">
-          <header className="text-center mb-10">
-            <h1 className="text-[10px] font-black tracking-[0.5em] text-emerald-500 uppercase mb-2">Faculty Core</h1>
-            <h2 className="text-3xl font-black text-white uppercase tracking-tighter italic">Academic Login</h2>
-          </header>
+    <div className="min-h-screen bg-slate-950 text-slate-200 font-sans flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+      {/* Background Decor */}
+      <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-600/10 rounded-full blur-[120px] -z-10"></div>
+      <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-emerald-600/5 rounded-full blur-[120px] -z-10"></div>
 
-          {step === 1 ? (
-            <form onSubmit={handleInitialSubmit} className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase text-slate-500 ml-2 tracking-[0.2em]">Faculty ID / Email</label>
-                <input 
-                  type="text" 
+      <div className="sm:mx-auto sm:w-full sm:max-w-md mb-8">
+        <div className="flex justify-center mb-6">
+          <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-2xl shadow-indigo-600/20 transform rotate-3">
+            <GraduationCap size={32} className="text-white" />
+          </div>
+        </div>
+        <h2 className="text-center text-4xl font-black tracking-tighter text-white italic uppercase">
+          Faculty <span className="text-indigo-400">Terminal</span>
+        </h2>
+        <p className="mt-2 text-center text-sm font-bold text-slate-500 uppercase tracking-widest">
+          Academic Personnel Access Portal
+        </p>
+      </div>
+
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 py-10 px-6 shadow-2xl rounded-[2.5rem] sm:px-12 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-600/10 rounded-full -mr-12 -mt-12 transition-transform hover:scale-150 duration-700"></div>
+
+          <form className="space-y-6" onSubmit={handleSubmit}>
+            <div>
+              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2 px-1">
+                Email or Register Number
+              </label>
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-500 group-focus-within:text-indigo-400 transition-colors">
+                  <UserCheck size={18} />
+                </div>
+                <input
+                  type="text"
+                  name="identifier"
+                  value={formData.identifier}
+                  onChange={handleChange}
                   required
-                  placeholder="FAC-2026-XXXX" 
-                  className="w-full bg-slate-800 border border-slate-700 rounded-2xl px-6 py-4 text-white outline-none focus:ring-2 focus:ring-emerald-500 transition-all font-bold"
-                  value={facultyId}
-                  onChange={(e) => setFacultyId(e.target.value)}
+                  placeholder="EX: 2024FAC001 or name@edu.com"
+                  className="block w-full pl-12 pr-4 py-4 bg-slate-800/50 border border-slate-700/50 rounded-[1.25rem] text-white text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all font-mono"
                 />
               </div>
-              <button type="submit" className="w-full py-5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl text-xs uppercase tracking-[0.3em] shadow-xl shadow-emerald-500/10 transition-all">
-                Request Access Code
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2 px-1">
+                Security Password
+              </label>
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-500 group-focus-within:text-indigo-400 transition-colors">
+                  <Lock size={18} />
+                </div>
+                <input
+                  type="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  required
+                  placeholder="••••••••"
+                  className="block w-full pl-12 pr-4 py-4 bg-slate-800/50 border border-slate-700/50 rounded-[1.25rem] text-white text-sm placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all"
+                />
+              </div>
+            </div>
+
+            <div>
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full flex justify-center py-4 px-4 border border-transparent rounded-[1.25rem] shadow-lg text-sm font-black uppercase tracking-widest text-white bg-indigo-600 hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
+              >
+                {isLoading ? 'Authenticating...' : 'Establish Connection'}
+                {!isLoading && <ChevronRight size={18} className="ml-2" />}
               </button>
-            </form>
-          ) : (
-            <form onSubmit={handleVerifyOtp} className="space-y-8 animate-in zoom-in-95">
-              <div className="text-center">
-                <p className="text-sm text-slate-400 mb-1">Verify Faculty Credentials</p>
-                <p className="text-[10px] text-emerald-500 font-black tracking-widest uppercase italic">{facultyId}</p>
-              </div>
+            </div>
+          </form>
 
-              <div className="flex justify-between gap-2">
-                {otp.map((data, index) => (
-                  <input
-                    key={index}
-                    type="text"
-                    maxLength="1"
-                    className="w-12 h-14 bg-slate-800 border border-slate-700 rounded-xl text-center text-xl font-black text-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
-                    value={data}
-                    onChange={e => handleOtpChange(e.target, index)}
-                    onFocus={e => e.target.select()}
-                  />
-                ))}
+          <div className="mt-8">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-slate-800"></div>
               </div>
-
-              <div className="space-y-3">
-                <button type="submit" className="w-full py-5 bg-white text-slate-950 font-black rounded-2xl text-xs uppercase tracking-[0.3em] hover:bg-slate-200 transition-all">
-                  Authorize Session
-                </button>
-                <button 
-                  type="button" 
-                  onClick={() => setStep(1)} 
-                  className="w-full text-[9px] font-black uppercase text-slate-600 hover:text-emerald-500 transition-all tracking-widest"
-                >
-                  Return to Identification
-                </button>
+              <div className="relative flex justify-center text-[10px] uppercase font-black">
+                <span className="px-2 bg-slate-900/50 text-slate-500 tracking-widest">
+                  New Faculty?
+                </span>
               </div>
-            </form>
-          )}
+            </div>
 
-          <footer className="mt-12 pt-8 border-t border-slate-800/50 text-center">
-            <p className="text-[8px] text-slate-700 font-black uppercase tracking-[0.3em]">Institutional Single Sign-On Enabled</p>
-          </footer>
+            <div className="mt-6 text-center">
+              <Link
+                to="/faculty-register"
+                className="inline-flex items-center gap-2 text-sm font-bold text-indigo-400 hover:text-indigo-300 transition-all group"
+              >
+                Initiate Recruitment Sequence
+                <LogIn size={16} className="group-hover:translate-x-1 transition-transform" />
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
     </div>

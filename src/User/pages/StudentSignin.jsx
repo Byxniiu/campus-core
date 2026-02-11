@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authAPI } from '../../api/auth';
-import { useAuthStore } from '../../stores/useAuthStore';
+import { useStudentAuthStore } from '../../stores/useStudentAuthStore';
 import toast from 'react-hot-toast';
 import {
   Key,
@@ -17,13 +17,29 @@ import {
 
 const SignInPage = () => {
   const navigate = useNavigate();
-  const login = useAuthStore((state) => state.login);
+  const login = useStudentAuthStore((state) => state.login);
 
   const [formData, setFormData] = useState({
     identifier: '',
     password: '',
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [blockedMessage, setBlockedMessage] = useState('');
+
+  // Check for blocked account notification
+  useEffect(() => {
+    const isBlocked = sessionStorage.getItem('accountBlocked');
+    const message = sessionStorage.getItem('blockMessage');
+
+    if (isBlocked === 'true' && message) {
+      setBlockedMessage(message);
+      toast.error(message, { duration: 6000 });
+
+      // Clear the session storage
+      sessionStorage.removeItem('accountBlocked');
+      sessionStorage.removeItem('blockMessage');
+    }
+  }, []);
 
   const handleChange = (e) => {
     const { id, value } = e.target;
@@ -38,12 +54,32 @@ const SignInPage = () => {
     setIsLoading(true);
 
     try {
+      console.log('🔐 Attempting login with:', formData.identifier);
       const response = await authAPI.login(formData.identifier, formData.password);
+
+      console.log('📦 Login response:', response);
+      console.log('✅ Response success:', response.success);
+      console.log('📊 Response data:', response.data);
 
       if (response.success) {
         const { user, accessToken, refreshToken } = response.data;
 
+        console.log('👤 User data:', user);
+        console.log('🔑 Access token exists:', !!accessToken);
+        console.log('🔄 Refresh token exists:', !!refreshToken);
+
+        console.log('💾 Calling login() to save to store...');
         login(user, accessToken, refreshToken);
+
+        // Verify it was saved
+        setTimeout(() => {
+          const stored = localStorage.getItem('student-auth');
+          console.log('🗄️ Stored in localStorage (student-auth):', stored ? 'YES' : 'NO');
+          if (stored) {
+            console.log('📄 Storage content:', JSON.parse(stored));
+          }
+        }, 100);
+
         toast.success(`Access Authorized. Welcome, ${user.firstName}.`);
 
         if (user.role === 'student') {
@@ -51,9 +87,11 @@ const SignInPage = () => {
         } else {
           navigate('/');
         }
+      } else {
+        console.error('❌ Response success was false');
       }
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('❌ Login error:', error);
       toast.error(error.message || 'Invalid credentials or login failed');
     } finally {
       setIsLoading(false);
@@ -94,6 +132,33 @@ const SignInPage = () => {
             <p className="text-blue-950/40 text-[11px] font-bold mt-5 uppercase tracking-[0.2em] ml-1">
               Secure access terminal // Student Core
             </p>
+
+            {/* Blocked Account Warning */}
+            {blockedMessage && (
+              <div className="mt-8 p-5 bg-red-50 border-l-4 border-red-500 rounded-lg animate-in fade-in slide-in-from-top-2">
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0">
+                    <svg
+                      className="w-6 h-6 text-red-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                      />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-sm font-bold text-red-800 mb-1">Account Blocked</h3>
+                    <p className="text-xs text-red-700 leading-relaxed">{blockedMessage}</p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <form onSubmit={handleSubmit} className="mt-12 space-y-6">
               <div className="space-y-3">

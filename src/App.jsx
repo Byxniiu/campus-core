@@ -18,6 +18,9 @@ import StudyMaterials from './User/pages/StudyMaterials';
 import AdminLogin from './Admin/AdminLogin';
 import AdminCoreDashboard from './Admin/AdminCoreDashboard';
 import FacultyDashboard from './Faculty/FacultyDashboard';
+import FacultyRegister from './Faculty/FacultyRegister';
+import FacultyOTPVerification from './Faculty/FacultyOTPVerification';
+import FacultyWaitingApproval from './Faculty/FacultyWaitingApproval';
 import CounselorLogin from './Counselors/CounselorLogin';
 import CounselorHome from './Counselors/CounselorHome';
 import FacultyLogin from './Faculty/FacultyLogin';
@@ -26,12 +29,14 @@ import StaffHomepage from './Non-Teaching Staff/StaffHomepage';
 
 import ToastProvider from './components/common/ToastProvider';
 import Footer from './User/components/footer';
+import ActiveStatusChecker from './components/ActiveStatusChecker';
 
 function App() {
   return (
     <div className="App">
       <>
         <ToastProvider />
+        <ActiveStatusChecker />
         {/*Home Page */}
         <Routes>
           <Route path="/" element={<HomePage />} />
@@ -46,6 +51,7 @@ function App() {
           <Route path="/counseling-form" element={<CounselingForm />} />
           <Route path="/counseling-stats" element={<CounselingStats />} />
           <Route path="/sos-system" element={<SOSSystem />} />
+
           <Route path="study-pod-list" element={<StudyPods />} />
           <Route path="/study-pod-create" element={<StudyPodCreate />} />
           <Route path="/study-pod-chat" element={<StudyPodChat />} />
@@ -56,7 +62,10 @@ function App() {
           <Route path="/admin-core-dashboard" element={<AdminCoreDashboard />} />
 
           {/*FACULTIES*/}
+          <Route path="/faculty-register" element={<FacultyRegister />} />
           <Route path="/faculty-login" element={<FacultyLogin />} />
+          <Route path="/faculty-otp-verification" element={<FacultyOTPVerification />} />
+          <Route path="/faculty-waiting-approval" element={<FacultyWaitingApproval />} />
           <Route path="/faculty-dashboard" element={<FacultyDashboard />} />
 
           {/*Counselor*/}
