@@ -1,106 +1,205 @@
 import React, { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { authAPI } from '../../api/auth';
+import { useAuthStore } from '../../stores/useAuthStore';
+import toast from 'react-hot-toast';
+import {
+  Key,
+  Mail,
+  Fingerprint,
+  ShieldCheck,
+  GraduationCap,
+  ArrowRight,
+  ChevronLeft,
+  LayoutDashboard,
+  Anchor,
+} from 'lucide-react';
 
 const SignInPage = () => {
+  const navigate = useNavigate();
+  const login = useAuthStore((state) => state.login);
+
   const [formData, setFormData] = useState({
-    registerNo: '',
+    identifier: '',
     password: '',
   });
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleChange = (e) => {
     const { id, value } = e.target;
-    setFormData(prevData => ({
+    setFormData((prevData) => ({
       ...prevData,
       [id]: value,
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Student Sign-in Form submitted:', formData);
-    // Add your sign-in logic here (e.g., API call, authentication)
+    setIsLoading(true);
+
+    try {
+      const response = await authAPI.login(formData.identifier, formData.password);
+
+      if (response.success) {
+        const { user, accessToken, refreshToken } = response.data;
+
+        login(user, accessToken, refreshToken);
+        toast.success(`Access Authorized. Welcome, ${user.firstName}.`);
+
+        if (user.role === 'student') {
+          navigate('/student-home-page');
+        } else {
+          navigate('/');
+        }
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      toast.error(error.message || 'Invalid credentials or login failed');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const primaryColor = 'indigo'; 
-
   return (
-    // Outer container: Full screen, centered, light gray background
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
-      
-      {/* Main Card Container: Two columns, shadow, rounded corners */}
-      <div className="flex w-full max-w-5xl bg-white shadow-xl rounded-xl overflow-hidden min-h-[600px]">
-        
+    <div className="min-h-screen flex items-center justify-center bg-[#F0F9FF] p-4 md:p-8 font-jakarta relative overflow-hidden">
+      {/* Background Decor */}
+      <div className="absolute top-0 left-0 w-[700px] h-[700px] bg-teal-100/20 rounded-full blur-[120px] -z-0"></div>
+      <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-blue-100/20 rounded-full blur-[100px] -z-0"></div>
+
+      <div className="flex w-full max-w-5xl bg-white shadow-2xl rounded-[40px] overflow-hidden min-h-[650px] border border-teal-50 relative z-10">
         {/* Left Side: Form Container */}
-        <div className="w-full lg:w-1/2 p-8 sm:p-12 flex flex-col justify-between">
-          
-          {/* Logo/Header Area */}
-          <header className="mb-6">
-            <h1 
-              className="text-3xl font-bebas tracking-wider text-gray-800"
+        <div className="w-full lg:w-1/2 p-10 md:p-16 flex flex-col justify-between">
+          <header className="mb-10 flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-blue-950 rounded-xl flex items-center justify-center shadow-lg shadow-teal-100">
+                <GraduationCap size={24} className="text-teal-400" />
+              </div>
+              <span className="font-outfit text-3xl font-bold tracking-tight text-blue-950">
+                Campus <span className="text-teal-500">Core</span>
+              </span>
+            </div>
+            <Link
+              to="/"
+              className="text-[10px] font-bold text-blue-900/40 uppercase tracking-widest hover:text-teal-600 transition-colors flex items-center gap-2 group"
             >
-              Campus Core
-            </h1>
+              <ChevronLeft size={14} className="group-hover:-translate-x-1 transition-transform" />{' '}
+              Back to Home
+            </Link>
           </header>
 
-          {/* Form Content Area */}
           <div className="flex-grow flex flex-col justify-center">
-            <h2 className="text-4xl font-bold text-gray-900 mb-2">Sign In</h2>
-            <p className="text-gray-500 mb-8">Welcome back! Please enter your credentials.</p>
+            <h2 className="text-6xl font-outfit font-bold tracking-tight text-blue-950 leading-none">
+              Identity <span className="text-teal-500">Verification</span>
+            </h2>
+            <p className="text-blue-950/40 text-[11px] font-bold mt-5 uppercase tracking-[0.2em] ml-1">
+              Secure access terminal // Student Core
+            </p>
 
-            <form onSubmit={handleSubmit}>
-              
-              {/* Register No Input Group */}
-              <div className="mb-6">
-                <label 
-                  htmlFor="registerNo" 
-                  className="block text-sm font-medium text-gray-700 mb-2"
+            <form onSubmit={handleSubmit} className="mt-12 space-y-6">
+              <div className="space-y-3">
+                <label
+                  htmlFor="identifier"
+                  className="text-[10px] font-bold text-blue-950/20 uppercase tracking-[0.2em] ml-1"
                 >
-                  Register no
+                  Admission Number / Email
                 </label>
-                <input
-                  type="text"
-                  id="registerNo"
-                  value={formData.registerNo}
-                  onChange={handleChange}
-                  placeholder="Your Registration Number"
-                  required
-                  className={`w-full p-3 border border-gray-300 rounded-lg focus:ring-${primaryColor}-500 focus:border-${primaryColor}-500`}
-                />
+                <div className="relative group">
+                  <div className="absolute left-6 top-1/2 -translate-y-1/2 text-blue-200 group-focus-within:text-teal-600 transition-colors">
+                    <Fingerprint size={20} />
+                  </div>
+                  <input
+                    type="text"
+                    id="identifier"
+                    value={formData.identifier}
+                    onChange={handleChange}
+                    placeholder="Enter credentials"
+                    required
+                    className="w-full pl-16 pr-8 py-5 bg-blue-50/50 border border-teal-50 rounded-[28px] focus:ring-4 focus:ring-teal-400/10 focus:border-teal-400 outline-none transition-all font-semibold text-blue-900 shadow-inner placeholder:text-blue-300"
+                  />
+                </div>
               </div>
 
-             
+              <div className="space-y-3">
+                <label
+                  htmlFor="password"
+                  className="text-[10px] font-bold text-blue-950/20 uppercase tracking-[0.2em] ml-1"
+                >
+                  Secure Passkey
+                </label>
+                <div className="relative group">
+                  <div className="absolute left-6 top-1/2 -translate-y-1/2 text-blue-200 group-focus-within:text-teal-600 transition-colors">
+                    <Key size={20} />
+                  </div>
+                  <input
+                    type="password"
+                    id="password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    placeholder="••••••••"
+                    required
+                    className="w-full pl-16 pr-8 py-5 bg-blue-50/50 border border-teal-50 rounded-[28px] focus:ring-4 focus:ring-teal-400/10 focus:border-teal-400 outline-none transition-all font-semibold text-blue-900 shadow-inner placeholder:text-blue-300"
+                  />
+                </div>
+              </div>
 
-              {/* Sign In Button */}
               <button
                 type="submit"
-                className={`w-full py-3 bg-${primaryColor}-600 text-white font-semibold rounded-lg shadow-md hover:bg-${primaryColor}-700 transition duration-300 focus:outline-none focus:ring-2 focus:ring-${primaryColor}-500 focus:ring-offset-2`}
+                disabled={isLoading}
+                className="w-full py-5 bg-blue-950 text-white font-bold text-[11px] uppercase tracking-[0.3em] rounded-[24px] shadow-2xl shadow-teal-100/50 hover:bg-teal-600 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-3 group"
               >
-                Sign in
+                {isLoading ? 'Verifying Credentials...' : 'Authorize Access Node'}
+                <ArrowRight
+                  size={18}
+                  className="group-hover:translate-x-1 transition-transform text-teal-400"
+                />
               </button>
             </form>
           </div>
 
-          {/* Registration Link */}
-          <p className="text-center text-sm text-gray-600 mt-6">
-            Not a user? 
-            <a href="/student-signup" className={`font-semibold text-${primaryColor}-600 hover:text-${primaryColor}-500 ml-1`}>
-              Register
-            </a>
-          </p>
-        </div>
-
-        {/* Right Side: Visual/Illustration Container (Hidden on small screens) */}
-        <div className={`hidden lg:flex lg:w-1/2 bg-${primaryColor}-600 items-center justify-center p-12`}>
-          <div className="text-white text-center">
-            <h3 className="text-3xl font-bold mb-4">Access Your Student Dashboard!</h3>
-            <p className="text-indigo-200">
-              Enter your details to continue your learning journey.
-            </p>
-            <div className="mt-8 text-6xl">
-                📚
-            </div>
+          <div className="border-t border-teal-50 pt-10 flex justify-between items-center text-[10px] font-bold text-blue-900/40 uppercase tracking-widest">
+            <p>New to the network?</p>
+            <Link
+              to="/student-signup"
+              className="text-blue-950 hover:text-teal-600 transition-colors bg-teal-50 px-5 py-2.5 rounded-full"
+            >
+              Register Account
+            </Link>
           </div>
         </div>
 
+        {/* Right Side: Visual Container */}
+        <div className="hidden lg:flex lg:w-1/2 bg-blue-950 items-center justify-center p-20 relative overflow-hidden">
+          {/* Deep Sea decor */}
+          <div className="absolute top-0 right-0 w-80 h-80 bg-teal-400/10 rounded-full blur-3xl -z-0"></div>
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-400/10 rounded-full blur-3xl -z-0"></div>
+
+          <div className="relative z-10 text-center">
+            <div className="w-24 h-24 bg-blue-900/40 rounded-[32px] border border-teal-400/20 flex items-center justify-center mx-auto mb-10 shadow-2xl backdrop-blur-sm">
+              <ShieldCheck size={48} className="text-teal-400" />
+            </div>
+            <h3 className="text-5xl font-outfit font-bold tracking-tight text-white leading-tight mb-6">
+              Central <span className="text-teal-500">Gateway</span>
+            </h3>
+            <p className="text-blue-200/50 text-lg font-medium mb-12 max-w-sm mx-auto">
+              Access the core academic infrastructure. Securely manage your student identity and
+              resources.
+            </p>
+
+            <div className="bg-white/5 p-8 rounded-[32px] border border-teal-400/10 flex items-center gap-6 text-left shadow-inner backdrop-blur-md">
+              <div className="bg-blue-900 p-3 rounded-xl border border-teal-400/20 shadow-lg">
+                <Anchor size={24} className="text-teal-400" />
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-teal-400 uppercase tracking-widest mb-1.5">
+                  Session Target
+                </p>
+                <p className="text-base font-bold text-white uppercase tracking-widest">
+                  Student Terminal
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

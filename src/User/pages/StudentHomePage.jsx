@@ -1,280 +1,243 @@
 import React, { useState } from 'react';
-import { 
-  AlertTriangle, MessageSquare, Calendar, Users, 
-  UserCircle, Plus, Send, X, Phone, Mail 
+import { useNavigate } from 'react-router-dom';
+import {
+  AlertTriangle,
+  MessageSquare,
+  Calendar,
+  Users,
+  UserCircle,
+  LogOut,
+  ChevronRight,
+  Bell,
+  Shield,
+  Waves,
+  Radio,
+  Anchor,
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useAuthStore } from '../../stores/useAuthStore';
+import { authAPI } from '../../api/auth';
+import toast from 'react-hot-toast';
+
+// Tab Components
+import SOSTab from './Dashboard/SOSTab';
+import GroupsTab from './Dashboard/GroupsTab';
+import EventsTab from './Dashboard/EventsTab';
+import CounselorsTab from './Dashboard/CounselorsTab';
+import StaffTab from './Dashboard/StaffTab';
 
 const StudentHomePage = () => {
-  const [activeTab, setActiveTab] = useState('SOS System');
-  const [selectedItem, setSelectedItem] = useState(null); // Handles sub-views (Events, Counselors, Staff)
-  const [registered, setRegistered] = useState(false);
-  const [showFacultyChat, setShowFacultyChat] = useState(false);
-  const [selectedFaculty, setSelectedFaculty] = useState(null);
+  const navigate = useNavigate();
+  const { user, logout, refreshToken } = useAuthStore();
+  const [activeTab, setActiveTab] = useState('Safety SOS');
 
-  // --- Mock Data ---
-  const events = [
-    { id: 1, name: "Tech Symposium 2026", type: "Workshop", venue: "Hall A", date: "Feb 15", time: "10:00 AM" },
-    { id: 2, name: "Career Fair", type: "Seminar", venue: "Main Square", date: "Feb 20", time: "09:00 AM" }
+  const handleLogout = async () => {
+    try {
+      if (refreshToken) {
+        await authAPI.logout(refreshToken);
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      logout();
+      toast.success('Session terminated securely.');
+      navigate('/');
+    }
+  };
+
+  const navItems = [
+    { id: 'Safety SOS', icon: <AlertTriangle size={20} /> },
+    { id: 'Chat Groups', icon: <MessageSquare size={20} /> },
+    { id: 'Upcoming Events', icon: <Calendar size={20} /> },
+    { id: 'Counseling', icon: <Users size={20} /> },
+    { id: 'Campus Staff', icon: <UserCircle size={20} /> },
   ];
 
-  const counselors = [
-    { id: 1, name: "Dr. Sarah Smith", specialty: "Mental Health", bio: "15 years experience in student psychology.", availability: "Mon-Fri" },
-    { id: 2, name: "Mr. David Chen", specialty: "Academic Stress", bio: "Expert in time management and exam anxiety.", availability: "Tue-Thu" }
-  ];
-
-  const staff = [
-    { id: 1, name: "John Doe", role: "Librarian", dept: "Central Library" },
-    { id: 2, name: "Maria Garcia", role: "IT Support", dept: "Tech Hub" }
-  ];
-
-  const facultyList = [
-    { id: 1, name: "Prof. Alan Turing", dept: "Computer Science" },
-    { id: 2, name: "Dr. Ada Lovelace", dept: "Mathematics" }
-  ];
-
-  // --- Handlers ---
-  const resetSubView = (tab) => {
-    setActiveTab(tab);
-    setSelectedItem(null);
-    setRegistered(false);
+  const renderActiveTab = () => {
+    switch (activeTab) {
+      case 'Safety SOS':
+        return <SOSTab />;
+      case 'Chat Groups':
+        return <GroupsTab />;
+      case 'Upcoming Events':
+        return <EventsTab />;
+      case 'Counseling':
+        return <CounselorsTab />;
+      case 'Campus Staff':
+        return <StaffTab />;
+      default:
+        return <SOSTab />;
+    }
   };
 
   return (
-    <div className="flex h-screen bg-slate-50 text-slate-900">
+    <div className="flex h-screen bg-[#F0F9FF] text-blue-950 font-jakarta overflow-hidden">
       {/* SIDEBAR */}
-      <aside className="w-72 bg-white border-r border-slate-200 flex flex-col">
-        <div className="p-6 border-b flex items-center gap-2 text-blue-600 font-bold text-xl">
-          <ShieldAlert className="w-8 h-8" /> Campus Core
+      <motion.aside
+        initial={{ x: -100, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        transition={{ duration: 0.8, ease: 'easeOut' }}
+        className="w-80 bg-blue-950 flex flex-col shadow-[12px_0_40px_rgba(30,58,138,0.2)] z-20 relative"
+      >
+        <div className="absolute top-0 right-0 w-48 h-48 bg-teal-400/5 rounded-full blur-[80px] pointer-events-none"></div>
+
+        <div
+          className="p-10 border-b border-white/5 flex items-center gap-4 group cursor-pointer"
+          onClick={() => navigate('/')}
+        >
+          <motion.div
+            whileHover={{ rotate: 12 }}
+            className="bg-white/5 p-3 rounded-2xl border border-white/10 shadow-lg group-hover:bg-teal-400/10 transition-colors"
+          >
+            <Shield className="w-6 h-6 text-teal-400" />
+          </motion.div>
+          <span className="font-outfit text-2xl font-bold tracking-tight text-white uppercase">
+            Campus <span className="text-teal-400">Core</span>
+          </span>
         </div>
-        <nav className="flex-1 p-4 space-y-2">
-          {[
-            { id: 'SOS System', icon: <AlertTriangle size={20}/> },
-            { id: 'Chat Group', icon: <MessageSquare size={20}/> },
-            { id: 'Event News', icon: <Calendar size={20}/> },
-            { id: 'Counselor List', icon: <Users size={20}/> },
-            { id: 'Staff List', icon: <UserCircle size={20}/> },
-          ].map((item) => (
-            <button
+
+        <div className="p-8">
+          <motion.div
+            whileHover={{ scale: 1.02 }}
+            className="bg-white/5 p-6 rounded-[32px] flex items-center gap-4 border border-white/5 mb-8 shadow-inner"
+          >
+            <div className="w-14 h-14 bg-teal-400 rounded-2xl flex items-center justify-center text-blue-950 font-bold text-xl shadow-[0_8px_20px_rgba(45,212,191,0.3)]">
+              {user?.firstName?.[0]}
+              {user?.lastName?.[0]}
+            </div>
+            <div className="flex-1 truncate">
+              <p className="text-base font-bold text-white tracking-tight truncate">
+                {user?.firstName} {user?.lastName}
+              </p>
+              <p className="text-[10px] font-bold text-teal-400/50 uppercase tracking-[0.2em] mt-1.5 flex items-center gap-2">
+                <div className="w-1 h-1 bg-teal-400 rounded-full"></div> Verified
+              </p>
+            </div>
+          </motion.div>
+        </div>
+
+        <nav className="flex-1 px-6 space-y-3 overflow-y-auto scrollbar-none">
+          <p className="px-4 text-[9px] font-bold text-white/20 uppercase tracking-[0.3em] mb-4">
+            Operational Nodes
+          </p>
+          {navItems.map((item, index) => (
+            <motion.button
               key={item.id}
-              onClick={() => resetSubView(item.id)}
-              className={`w-full flex items-center gap-3 p-3 rounded-xl transition font-medium ${
-                activeTab === item.id ? 'bg-blue-600 text-white shadow-lg' : 'hover:bg-blue-50 text-slate-600'
+              initial={{ x: -20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ delay: 0.1 * index + 0.3 }}
+              whileHover={{ scale: 1.02, x: 4 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setActiveTab(item.id)}
+              className={`w-full flex items-center justify-between p-4.5 rounded-[22px] transition-all duration-300 group ${
+                activeTab === item.id
+                  ? 'bg-white/10 text-teal-400 shadow-xl border border-white/10 translate-x-1'
+                  : 'hover:bg-white/5 text-white/40 hover:text-white'
               }`}
             >
-              {item.icon} {item.id}
-            </button>
+              <div className="flex items-center gap-5">
+                <div
+                  className={`p-2.5 rounded-xl transition-all duration-300 ${activeTab === item.id ? 'bg-teal-400 text-blue-950 shadow-lg shadow-teal-400/20' : 'bg-white/5 group-hover:bg-white/10'}`}
+                >
+                  {React.cloneElement(item.icon, { size: 18 })}
+                </div>
+                <span
+                  className={`text-xs font-bold tracking-widest uppercase ${activeTab === item.id ? 'text-white' : 'text-white/30 group-hover:text-white/60'}`}
+                >
+                  {item.id}
+                </span>
+              </div>
+              <ChevronRight
+                size={14}
+                className={`transition-all duration-500 ${activeTab === item.id ? 'text-teal-400 translate-x-1' : 'text-white/10 group-hover:text-white/20'}`}
+              />
+            </motion.button>
           ))}
         </nav>
-      </aside>
+
+        <div className="p-8 border-t border-white/5">
+          <motion.button
+            whileHover={{ x: 5, color: '#f87171' }}
+            onClick={handleLogout}
+            className="w-full flex items-center gap-4 p-5 rounded-[22px] transition font-bold text-[10px] text-white/20 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 uppercase tracking-[0.2em]"
+          >
+            <LogOut size={18} /> Sign Out Node
+          </motion.button>
+        </div>
+      </motion.aside>
 
       {/* MAIN CONTENT AREA */}
-      <main className="flex-1 overflow-y-auto relative p-8">
-        
-        {/* 1. SOS SYSTEM (DEFAULT HERO) */}
-        {activeTab === 'SOS System' && (
-          <div className="h-full bg-white rounded-3xl border-4 border-red-50 flex flex-col items-center justify-center p-10 text-center shadow-xl">
-             <div className="bg-red-600 p-8 rounded-full animate-pulse mb-6 shadow-red-200 shadow-2xl">
-               <AlertTriangle size={80} color="white" />
-             </div>
-             <h1 className="text-5xl font-black text-slate-900 mb-4 tracking-tight">SOS EMERGENCY</h1>
-             <p className="text-slate-500 max-w-lg mb-10 text-lg">Broadcast your location and ID to campus security and emergency medical services instantly.</p>
-             <a href="/sos-system">
-                <button className="bg-red-600 hover:bg-red-700 text-white px-16 py-5 rounded-2xl font-black text-2xl shadow-xl hover:scale-105 active:scale-95 transition-all">
-                ACTIVATE NOW
-             </button>
-             </a>
-          </div>
-        )}
+      <main className="flex-1 flex flex-col min-w-0 relative">
+        {/* Background Decor */}
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-teal-100/20 rounded-full blur-[140px] -z-10 pointer-events-none"></div>
+        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-blue-100/10 rounded-full blur-[120px] -z-10 pointer-events-none text-blue-950/5">
+          <Anchor size={400} />
+        </div>
 
-        {/* 2. CHAT GROUPS */}
-        {activeTab === 'Chat Group' && (
-          <div className="max-w-4xl mx-auto">
-            <div className="flex justify-between items-center mb-8">
-              <h2 className="text-3xl font-bold">Groups</h2>
-              <button className="flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-xl font-semibold"><Plus size={20}/> Create Group</button>
+        <header className="h-28 px-12 flex items-center justify-between bg-white/60 backdrop-blur-2xl border-b border-teal-50 shrink-0 z-10">
+          <motion.div
+            initial={{ y: -20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ duration: 0.6 }}
+          >
+            <h2 className="text-4xl font-outfit font-bold text-blue-950 tracking-tight uppercase">
+              {activeTab}
+            </h2>
+            <p className="text-[10px] text-blue-950/30 font-bold uppercase tracking-[0.2em] mt-3 flex items-center gap-2">
+              <Radio size={14} className="text-teal-500 animate-pulse" /> Active Node •{' '}
+              {new Date().toLocaleDateString('en-US', {
+                weekday: 'long',
+                month: 'long',
+                day: 'numeric',
+              })}
+            </p>
+          </motion.div>
+
+          <div className="flex items-center gap-8">
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              className="relative p-3.5 bg-white text-blue-300 hover:text-teal-500 hover:bg-blue-50/50 rounded-2xl transition-all border border-teal-50 shadow-sm group"
+            >
+              <Bell size={22} className="group-hover:rotate-12 transition-transform" />
+              <span className="absolute top-3.5 right-3.5 w-2.5 h-2.5 bg-teal-500 rounded-full border-2 border-white shadow-[0_0_8px_rgba(45,212,191,1)]"></span>
+            </motion.button>
+            <div className="h-10 w-[1px] bg-teal-100/50 mx-2"></div>
+            <div className="text-right hidden lg:block">
+              <p className="text-xs font-bold text-blue-950 tracking-tight">
+                {user?.studentId || 'U-7281-NODE'}
+              </p>
+              <p className="text-[10px] text-teal-600 font-bold uppercase tracking-[0.2em] mt-1.5 flex items-center justify-end gap-2">
+                <div className="w-1.5 h-1.5 bg-teal-400 rounded-full animate-pulse"></div>{' '}
+                {user?.department || 'Advanced Studies'}
+              </p>
             </div>
-            <div className="grid gap-4">
-              {['CS Students 2026', 'Drama Club', 'Residents Hall A'].map(g => (
-                <div key={g} className="bg-white p-5 rounded-2xl border flex justify-between items-center hover:shadow-md cursor-pointer transition">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-slate-200 rounded-full flex items-center justify-center font-bold text-slate-600">{g[0]}</div>
-                    <span className="font-bold text-lg">{g}</span>
-                  </div>
-                  <button className="text-blue-600 font-medium">Open Chat</button>
-                </div>
-              ))}
-            </div>
+            <motion.div
+              whileHover={{ scale: 1.1, rotate: 5 }}
+              className="w-12 h-12 rounded-2xl bg-blue-950 text-teal-400 flex items-center justify-center font-bold text-lg border border-blue-900 shadow-xl shadow-teal-100 cursor-pointer"
+            >
+              {user?.firstName?.[0]}
+            </motion.div>
           </div>
-        )}
+        </header>
 
-        {/* 3. EVENT NEWS */}
-        {activeTab === 'Event News' && (
-          <div className="max-w-4xl mx-auto">
-            {!selectedItem ? (
-              <div className="grid gap-6">
-                {events.map(e => (
-                  <div key={e.id} onClick={() => setSelectedItem(e)} className="group bg-white p-6 rounded-2xl border hover:border-blue-500 transition cursor-pointer flex justify-between items-center">
-                    <div>
-                      <span className="text-blue-600 text-sm font-bold uppercase tracking-wider">{e.type}</span>
-                      <h3 className="text-2xl font-bold mt-1 group-hover:text-blue-600 transition">{e.name}</h3>
-                      <p className="text-slate-500 mt-2">{e.date} • {e.venue}</p>
-                    </div>
-                    <div className="bg-slate-50 px-4 py-2 rounded-lg font-semibold text-slate-600">Details →</div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="bg-white rounded-3xl p-10 border shadow-sm">
-                <button onClick={() => setSelectedItem(null)} className="mb-6 text-slate-400 hover:text-slate-900 flex items-center gap-1">← Back</button>
-                <h2 className="text-4xl font-black mb-6">{selectedItem.name}</h2>
-                <div className="grid grid-cols-2 gap-4 mb-10">
-                  <div className="p-4 bg-slate-50 rounded-2xl"><strong>Venue:</strong> {selectedItem.venue}</div>
-                  <div className="p-4 bg-slate-50 rounded-2xl"><strong>Time:</strong> {selectedItem.time}</div>
-                </div>
-                <div className="border-t pt-8">
-                  {registered ? (
-                    <div className="bg-green-50 text-green-700 p-6 rounded-2xl border border-green-200 text-center font-bold text-xl">✓ Registration Successful!</div>
-                  ) : (
-                    <form onSubmit={(e) => {e.preventDefault(); setRegistered(true)}} className="space-y-4">
-                      <h3 className="text-xl font-bold">Register Now</h3>
-                      <input required className="w-full p-4 bg-slate-50 border rounded-xl" placeholder="Register Number" />
-                      <input required className="w-full p-4 bg-slate-50 border rounded-xl" placeholder="Full Name" />
-                      <input required className="w-full p-4 bg-slate-50 border rounded-xl" placeholder="Class" />
-                      <button className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold text-lg">Register Now</button>
-                    </form>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* 4. COUNSELOR LIST */}
-        {activeTab === 'Counselor List' && (
-           <div className="max-w-4xl mx-auto">
-             {!selectedItem ? (
-               <div className="grid gap-6">
-                 {counselors.map(c => (
-                   <div key={c.id} onClick={() => setSelectedItem(c)} className="bg-white p-6 rounded-2xl border hover:border-blue-500 cursor-pointer flex items-center gap-6">
-                     <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold text-xl">{c.name[4]}</div>
-                     <div>
-                       <h3 className="text-xl font-bold">{c.name}</h3>
-                       <p className="text-slate-500">{c.specialty}</p>
-                     </div>
-                   </div>
-                 ))}
-               </div>
-             ) : (
-               <div className="bg-white p-10 rounded-3xl border shadow-sm">
-                 <button onClick={() => setSelectedItem(null)} className="mb-6 text-slate-400">← Back</button>
-                 <h2 className="text-3xl font-bold mb-2">{selectedItem.name}</h2>
-                 <p className="text-blue-600 font-semibold mb-6">{selectedItem.specialty}</p>
-                 <p className="text-slate-600 mb-8">{selectedItem.bio}</p>
-                 <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100">
-                    <h4 className="font-bold mb-4">Apply for Appointment</h4>
-                    <button className="w-full bg-blue-600 text-white py-3 rounded-xl font-bold">Request Availability</button>
-                 </div>
-               </div>
-             )}
-           </div>
-        )}
-
-        {/* 5. NON-TEACHING STAFF */}
-        {activeTab === 'Staff List' && (
-           <div className="max-w-4xl mx-auto">
-             {!selectedItem ? (
-               <div className="grid gap-4">
-                 {staff.map(s => (
-                   <div key={s.id} onClick={() => setSelectedItem(s)} className="bg-white p-5 rounded-2xl border hover:shadow-md cursor-pointer flex justify-between">
-                     <div>
-                       <h3 className="font-bold text-lg">{s.name}</h3>
-                       <p className="text-slate-500">{s.role} • {s.dept}</p>
-                     </div>
-                   </div>
-                 ))}
-               </div>
-             ) : (
-               <div className="bg-white p-10 rounded-3xl border shadow-sm">
-                 <button onClick={() => setSelectedItem(null)} className="mb-6 text-slate-400">← Back</button>
-                 <h2 className="text-3xl font-bold">{selectedItem.name}</h2>
-                 <p className="text-slate-500 mb-8">{selectedItem.role} | {selectedItem.dept}</p>
-                 <div className="space-y-4">
-                    <textarea className="w-full p-4 bg-slate-50 border rounded-2xl h-32" placeholder="Explain how this staff member can help you..."></textarea>
-                    <button className="bg-slate-900 text-white px-8 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-black">
-                      <Send size={18}/> Get Help
-                    </button>
-                 </div>
-               </div>
-             )}
-           </div>
-        )}
-
+        <div className="flex-1 overflow-y-auto p-12 relative z-0 scrollbar-none">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: -20, opacity: 0 }}
+              transition={{ duration: 0.4, ease: 'easeInOut' }}
+              className="max-w-7xl mx-auto"
+            >
+              {renderActiveTab()}
+            </motion.div>
+          </AnimatePresence>
+        </div>
       </main>
-
-      {/* FLOATING FACULTY CHAT BUTTON */}
-      <div className="fixed bottom-8 right-8 z-50">
-        <button 
-          onClick={() => setShowFacultyChat(!showFacultyChat)}
-          className="bg-blue-600 text-white p-4 rounded-full shadow-2xl hover:scale-110 transition-transform flex items-center gap-2"
-        >
-          <MessageSquare size={28} />
-          {showFacultyChat ? <X size={20}/> : <span className="pr-2 font-bold">Faculty Chat</span>}
-        </button>
-
-        {showFacultyChat && (
-          <div className="absolute bottom-20 right-0 w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col h-[500px]">
-            <div className="bg-blue-600 p-4 text-white font-bold flex justify-between items-center">
-              <span>Faculties</span>
-              <button onClick={() => {setShowFacultyChat(false); setSelectedFaculty(null)}}><X size={18}/></button>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto">
-              {!selectedFaculty ? (
-                <div className="p-2">
-                  {facultyList.map(f => (
-                    <div 
-                      key={f.id} 
-                      onClick={() => setSelectedFaculty(f)}
-                      className="p-3 hover:bg-slate-50 rounded-xl cursor-pointer flex items-center gap-3 transition"
-                    >
-                      <div className="w-10 h-10 bg-slate-200 rounded-full flex items-center justify-center font-bold text-slate-500">{f.name[6]}</div>
-                      <div>
-                        <div className="text-sm font-bold">{f.name}</div>
-                        <div className="text-xs text-slate-400">{f.dept}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="p-4 flex flex-col items-center text-center h-full">
-                   <button onClick={() => setSelectedFaculty(null)} className="self-start text-xs text-blue-600 mb-4 italic">← All Faculties</button>
-                   <div className="w-20 h-20 bg-blue-50 rounded-full mb-4 flex items-center justify-center text-2xl font-black text-blue-600">
-                     {selectedFaculty.name[6]}
-                   </div>
-                   <h3 className="font-bold text-xl">{selectedFaculty.name}</h3>
-                   <p className="text-slate-500 mb-6">{selectedFaculty.dept}</p>
-                   <div className="flex gap-4 mb-8">
-                     <button className="p-2 bg-slate-100 rounded-lg text-slate-600 hover:bg-blue-100 transition"><Phone size={20}/></button>
-                     <button className="p-2 bg-slate-100 rounded-lg text-slate-600 hover:bg-blue-100 transition"><Mail size={20}/></button>
-                   </div>
-                   <button className="mt-auto w-full bg-blue-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2">
-                     <Send size={18}/> Message
-                   </button>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
     </div>
   );
 };
-
-const ShieldAlert = (props) => (
-  <svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10" />
-    <path d="M12 8v4" /><path d="M12 16h.01" />
-  </svg>
-);
 
 export default StudentHomePage;

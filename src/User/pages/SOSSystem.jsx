@@ -1,17 +1,30 @@
 import React, { useState, useEffect } from 'react';
+import {
+  AlertCircle,
+  ShieldAlert,
+  Navigation,
+  X,
+  Check,
+  Activity,
+  ShieldCheck,
+  Waves,
+  Radio,
+  Anchor,
+} from 'lucide-react';
+import { sosAPI } from '../../api/sos';
+import toast from 'react-hot-toast';
 
 const SOSSystem = () => {
   const [isHolding, setIsHolding] = useState(false);
   const [progress, setProgress] = useState(0);
   const [isSent, setIsSent] = useState(false);
-  const [showNotification, setShowNotification] = useState(false);
 
   // Logic for "Hold to Trigger" (3 seconds)
   useEffect(() => {
     let interval;
     if (isHolding && progress < 100) {
       interval = setInterval(() => {
-        setProgress((prev) => prev + 2);
+        setProgress((prev) => prev + 2.5);
       }, 30);
     } else if (progress >= 100) {
       triggerSOS();
@@ -23,105 +36,161 @@ const SOSSystem = () => {
     return () => clearInterval(interval);
   }, [isHolding, progress]);
 
-  const triggerSOS = () => {
-    setIsSent(true);
-    setIsHolding(false);
-    // Simulate notification appearing on other faculty devices
-    setTimeout(() => setShowNotification(true), 1000);
+  const triggerSOS = async () => {
+    try {
+      await sosAPI.createAlert({
+        location: 'Automatic - GPS / Floor Plan', // In a real app, use Geolocation API
+        type: 'Emergency',
+        message: 'SOS Triggered via Student Mobile App',
+      });
+      setIsSent(true);
+      setIsHolding(false);
+      toast.success('Emergency alert broadcasted successfully');
+    } catch (error) {
+      console.error('SOS Error:', error);
+      toast.error('Failed to broadcast SOS. Please try again.');
+      setIsHolding(false);
+      setProgress(0);
+    }
   };
 
   return (
-    <div className="min-h-[600px] flex flex-col items-center justify-center p-6 bg-slate-50 relative overflow-hidden">
-      
-      {/* 1. FACULTY PUSH NOTIFICATION SIMULATION */}
-      {showNotification && (
-        <div className="fixed top-4 right-4 w-80 bg-white/95 backdrop-blur shadow-2xl border-l-4 border-red-600 rounded-lg p-4 z-50 animate-bounce">
-          <div className="flex items-start">
-            <div className="bg-red-100 p-2 rounded-full mr-3">
-              <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-            </div>
-            <div className="flex-1">
-              <h4 className="text-sm font-bold text-slate-900">EMERGENCY ALERT</h4>
-              <p className="text-xs text-slate-600 mt-1">
-                <strong>Location:</strong> Counseling Block - Room 204
-              </p>
-              <p className="text-xs text-slate-500 mt-1 font-medium">Immediate assistance required by Faculty/Student.</p>
-              <div className="mt-3 flex gap-2">
-                <button className="bg-red-600 text-white text-[10px] px-3 py-1.5 rounded font-bold uppercase tracking-wider">I'm Responding</button>
-                <button onClick={() => setShowNotification(false)} className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Dismiss</button>
+    <div className="min-h-screen bg-blue-950 flex flex-col items-center justify-center p-8 relative overflow-hidden font-jakarta">
+      {/* BACKGROUND EFFECTS */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(45,212,191,0.05)_0,transparent_70%)] pointer-events-none"></div>
+      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-900 via-teal-500 to-blue-900 animate-pulse"></div>
+
+      {/* Decorative Blur */}
+      <div className="absolute -top-20 -left-20 w-80 h-80 bg-teal-400/10 rounded-full blur-[100px] -z-0"></div>
+      <div className="absolute -bottom-20 -right-20 w-80 h-80 bg-blue-400/10 rounded-full blur-[100px] -z-0"></div>
+
+      <div className="max-w-md w-full text-center z-10">
+        {!isSent ? (
+          <div className="animate-in fade-in slide-in-from-bottom-8 duration-500">
+            <div className="flex justify-center mb-10">
+              <div className="bg-white/5 p-8 rounded-[40px] border border-blue-400/20 shadow-2xl shadow-teal-900/20 group transition-all">
+                <ShieldAlert
+                  size={80}
+                  className="text-teal-400 group-hover:scale-110 transition-transform"
+                />
               </div>
             </div>
-          </div>
-        </div>
-      )}
 
-      {/* 2. TRIGGER INTERFACE */}
-      <div className="max-w-md w-full text-center space-y-8">
-        {!isSent ? (
-          <>
-            <div className="space-y-2">
-              <h2 className="text-3xl font-black text-slate-800 uppercase tracking-tight">SOS Trigger</h2>
-              <p className="text-slate-500 text-sm px-8">Pressing this button will instantly alert all campus faculty and security with your location.</p>
+            <div className="space-y-6 mb-16">
+              <h1 className="text-7xl font-outfit font-bold tracking-tight text-white leading-none">
+                Emergency <span className="text-teal-500">SOS</span>
+              </h1>
+              <p className="text-blue-100/40 text-lg font-medium px-4 leading-relaxed">
+                Initiate immediate campus-wide distress protocol. Your institutional location will
+                be broadcasted to all security nodes.
+              </p>
             </div>
 
-            <div className="relative flex justify-center items-center py-12">
-              {/* Outer Pulse Rings */}
-              <div className={`absolute w-48 h-48 bg-red-200 rounded-full animate-ping opacity-20 ${isHolding ? 'hidden' : 'block'}`}></div>
-              
+            <div className="relative flex justify-center items-center mb-20">
+              {/* Pulse Rings */}
+              {!isHolding && (
+                <>
+                  <div className="absolute w-56 h-56 bg-teal-400/10 rounded-full animate-ping"></div>
+                  <div className="absolute w-72 h-72 bg-blue-400/5 rounded-full animate-ping delay-300"></div>
+                </>
+              )}
+
               {/* Main Button */}
               <button
                 onMouseDown={() => setIsHolding(true)}
                 onMouseUp={() => setIsHolding(false)}
+                onMouseLeave={() => setIsHolding(false)}
                 onTouchStart={() => setIsHolding(true)}
                 onTouchEnd={() => setIsHolding(false)}
-                className={`relative z-10 w-40 h-40 rounded-full flex flex-col items-center justify-center transition-all duration-300 shadow-2xl active:scale-95 select-none ${
-                  isHolding ? 'bg-red-700' : 'bg-red-600'
+                className={`relative z-10 w-52 h-52 rounded-full flex flex-col items-center justify-center transition-all duration-300 shadow-[0_0_80px_rgba(45,212,191,0.2)] active:scale-95 select-none overflow-hidden group border-8 border-white/10 ${
+                  isHolding
+                    ? 'bg-blue-900 scale-110 border-teal-400/30'
+                    : 'bg-blue-950 hover:bg-blue-900'
                 }`}
               >
-                <svg className="w-12 h-12 text-white mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                <span className="text-white font-black text-xl tracking-widest">SOS</span>
-                
-                {/* Progress Ring Overlay */}
-                <svg className="absolute inset-0 w-full h-full -rotate-90">
-                  <circle
-                    cx="80" cy="80" r="76"
-                    stroke="white"
-                    strokeWidth="8"
-                    fill="transparent"
-                    strokeDasharray="477"
-                    strokeDashoffset={477 - (477 * progress) / 100}
-                    className="transition-all duration-100 ease-linear opacity-40"
-                    style={{ transform: 'translate(0, 0)' }}
-                  />
-                </svg>
+                <div className="absolute inset-0 bg-gradient-to-b from-teal-400/10 to-transparent"></div>
+                <AlertCircle
+                  className={`w-16 h-16 text-teal-400 mb-2 transition-transform duration-300 ${isHolding ? 'scale-125 rotate-12' : ''}`}
+                />
+                <span className="text-white font-bold text-3xl tracking-[0.1em] uppercase">
+                  ACTIVATE
+                </span>
+
+                {/* Progress Overlay */}
+                <div
+                  className="absolute bottom-0 left-0 w-full bg-teal-400/20 transition-all duration-100 ease-linear"
+                  style={{ height: `${progress}%` }}
+                ></div>
               </button>
             </div>
 
-            <p className="text-sm font-bold text-red-600 animate-pulse">
-              {isHolding ? "HOLDING... KEEP PRESSING" : "HOLD BUTTON FOR 3 SECONDS"}
-            </p>
-          </>
-        ) : (
-          <div className="bg-white p-8 rounded-3xl shadow-xl border-2 border-green-500 animate-in fade-in zoom-in duration-300">
-            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
-              </svg>
+            <div className="bg-white/5 backdrop-blur-3xl p-6 rounded-3xl inline-flex flex-col items-center gap-4 border border-blue-400/10 shadow-inner">
+              <div className="flex items-center gap-3">
+                <Activity
+                  size={16}
+                  className={isHolding ? 'text-teal-400 animate-spin' : 'text-blue-200/40'}
+                />
+                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-200/60">
+                  {isHolding ? 'Broadcasting Distress Signal...' : 'Institutional Safety Protocol'}
+                </span>
+              </div>
+              <div className="w-full bg-blue-900 h-1.5 rounded-full overflow-hidden border border-blue-800">
+                <div
+                  className={`h-full transition-all duration-100 ${isHolding ? 'bg-teal-400 shadow-[0_0_10px_rgba(45,212,191,0.5)]' : 'bg-teal-400/20'}`}
+                  style={{ width: `${isHolding ? progress : 100}%` }}
+                ></div>
+              </div>
             </div>
-            <h2 className="text-2xl font-bold text-slate-800">Alert Dispatched</h2>
-            <p className="text-slate-500 mt-2">Faculty members have been notified. Stay where you are; help is on the way.</p>
-            <button 
-              onClick={() => {setIsSent(false); setShowNotification(false);}}
-              className="mt-6 text-indigo-600 font-semibold hover:underline"
-            >
-              Cancel False Alarm
-            </button>
+          </div>
+        ) : (
+          <div className="bg-white/5 backdrop-blur-3xl p-12 md:p-16 rounded-[40px] border border-blue-400/20 shadow-2xl animate-in zoom-in duration-700 flex flex-col items-center">
+            <div className="w-32 h-32 bg-teal-400/10 rounded-[32px] flex items-center justify-center mb-10 border border-teal-400/20 shadow-[0_0_50px_rgba(45,212,191,0.2)]">
+              <ShieldCheck className="w-16 h-16 text-teal-400" />
+            </div>
+            <h1 className="text-6xl font-outfit font-bold tracking-tight text-white mb-6">
+              Signal <span className="text-teal-500">Live</span>
+            </h1>
+            <p className="text-blue-100/40 text-lg mb-12 leading-relaxed font-medium">
+              Security forces and response units have been deployed. Maintain your current
+              coordinates for node convergence.
+            </p>
+
+            <div className="w-full space-y-6">
+              <div className="flex items-center gap-4 bg-white/5 p-6 rounded-3xl border border-blue-400/10">
+                <Radio className="text-teal-400 animate-pulse" size={24} />
+                <div className="text-left">
+                  <p className="text-[10px] font-bold text-blue-200/40 uppercase tracking-widest">
+                    Live Coordinate Sync
+                  </p>
+                  <p className="text-sm font-bold text-white tracking-tight">
+                    Active GPS Uplink Established
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsSent(false)}
+                className="w-full bg-white text-blue-950 py-6 rounded-3xl font-bold text-xs uppercase tracking-[0.2em] hover:bg-teal-50 transition-all flex items-center justify-center gap-3 group active:scale-[0.98] shadow-2xl shadow-white/5"
+              >
+                <X size={18} className="group-hover:rotate-90 transition-transform" /> Decommission
+                Alert
+              </button>
+            </div>
           </div>
         )}
+      </div>
+
+      {/* FOOTER INFO */}
+      <div className="absolute bottom-10 flex flex-col items-center gap-4">
+        <div className="flex items-center gap-6 text-blue-200/20 text-[10px] font-bold uppercase tracking-[0.3em]">
+          <Waves size={14} className="text-teal-500/20" />
+          <span>NODE SECURED</span>
+          <div className="w-1.5 h-1.5 bg-teal-500 rounded-full shadow-[0_0_10px_rgba(45,212,191,1)]"></div>
+          <span>V4.2 ARCTIC PROTOCOL</span>
+          <Anchor size={14} className="text-teal-500/20" />
+        </div>
+        <p className="text-blue-100/10 text-[9px] font-bold uppercase tracking-[0.1em]">
+          © Institutional Campus Infrastructure
+        </p>
       </div>
     </div>
   );

@@ -1,14 +1,40 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { authAPI } from '../../api/auth';
+import toast from 'react-hot-toast';
+import {
+  ShieldCheck,
+  Mail,
+  Timer,
+  RefreshCw,
+  X,
+  CheckCircle,
+  GraduationCap,
+  ChevronLeft,
+  Radio,
+} from 'lucide-react';
 
 const OTPVerificationPage = () => {
-  const [otp, setOtp] = useState(['', '', '', '']); // State for individual OTP digits
-  const [remainingTime, setRemainingTime] = useState(60); // 60 seconds countdown
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const email = location.state?.email || '';
+  const studentId = location.state?.studentId || null;
+  const devOTP = location.state?.devOTP || null;
+
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [remainingTime, setRemainingTime] = useState(60);
   const [resendEnabled, setResendEnabled] = useState(false);
-  const inputRefs = useRef([]); // Ref for OTP input fields for focus management
+  const [isLoading, setIsLoading] = useState(false);
+  const inputRefs = useRef([]);
 
-  const primaryColor = 'indigo';
+  useEffect(() => {
+    if (!email) {
+      toast.error('Identity not found. Please re-register.');
+      navigate('/student-signup');
+    }
+  }, [email, navigate]);
 
-  // Countdown timer logic
   useEffect(() => {
     if (remainingTime <= 0) {
       setResendEnabled(true);
@@ -16,133 +42,208 @@ const OTPVerificationPage = () => {
     }
 
     const timer = setTimeout(() => {
-      setRemainingTime(prevTime => prevTime - 1);
+      setRemainingTime((prevTime) => prevTime - 1);
     }, 1000);
 
-    return () => clearTimeout(timer); // Cleanup on component unmount or time change
+    return () => clearTimeout(timer);
   }, [remainingTime]);
 
-  // Handle OTP input changes
   const handleOtpChange = (e, index) => {
     const value = e.target.value;
-
-    // Allow only single digit numbers
     if (/^[0-9]$/.test(value) || value === '') {
       const newOtp = [...otp];
       newOtp[index] = value;
       setOtp(newOtp);
-
-      // Auto-focus to next input
       if (value !== '' && index < otp.length - 1) {
-        inputRefs.current[index + 1].focus();
+        inputRefs.current[index + 1]?.focus();
       }
     }
   };
 
-  // Handle Backspace for OTP inputs
   const handleKeyDown = (e, index) => {
     if (e.key === 'Backspace' && otp[index] === '' && index > 0) {
-      inputRefs.current[index - 1].focus();
+      inputRefs.current[index - 1]?.focus();
     }
   };
 
-  const handleResendOtp = () => {
-    console.log('Resending OTP...');
-    setRemainingTime(60); // Reset timer
-    setResendEnabled(false);
-    setOtp(['', '', '', '']); // Clear OTP fields
-    inputRefs.current[0].focus(); // Focus first input
-    // Implement your actual resend OTP logic here (e.g., API call)
+  const handleResendOtp = async () => {
+    setIsLoading(true);
+    try {
+      const response = await authAPI.resendOTP(email);
+      if (response.success) {
+        toast.success('Security transmission sequence initiated.');
+        setRemainingTime(60);
+        setResendEnabled(false);
+        setOtp(['', '', '', '', '', '']);
+        inputRefs.current[0]?.focus();
+
+        if (response.data?.devOTP) {
+          console.log('Development OTP:', response.data.devOTP);
+          toast.success(`Dev Seq: ${response.data.devOTP}`, { duration: 5000 });
+        }
+      }
+    } catch (error) {
+      console.error('Resend OTP error:', error);
+      toast.error(error.message || 'Failed to resend code');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleVerify = (e) => {
+  const handleVerify = async (e) => {
     e.preventDefault();
     const fullOtp = otp.join('');
-    if (fullOtp.length === 4) {
-      console.log('Verifying OTP:', fullOtp);
-      // Implement your actual OTP verification logic here (e.g., API call)
-      alert(`Verifying OTP: ${fullOtp}`);
-    } else {
-      alert('Please enter a complete 4-digit OTP.');
-    }
-  };
 
-  const handleCancel = () => {
-    console.log('OTP verification cancelled.');
-    // Implement your cancellation logic (e.g., navigate back)
-    alert('Verification Cancelled.');
+    if (fullOtp.length !== 6) {
+      toast.error('Security code incomplete.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await authAPI.verifyOTP(email, fullOtp);
+      if (response.success) {
+        toast.success('Identity Verified. Arctic Access Granted.');
+        navigate('/student-signin');
+      }
+    } catch (error) {
+      console.error('OTP verification error:', error);
+      if (error.data?.code === 'OTP_EXPIRED') {
+        toast.error('Code expired. Request a new sequence.');
+        setResendEnabled(true);
+      } else {
+        toast.error(error.message || 'Verification failure. Retry sequence.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
-      {/* Outer container for the page */}
-      <div className="relative w-full max-w-lg lg:max-w-3xl"> {/* Adjusted max-w for a single column */}
-        
-        {/* Main Card Container: No more split layout, just the content */}
-        <div className="relative z-10 bg-white rounded-xl shadow-xl flex flex-col min-h-[500px] py-12 px-6 sm:px-12">
-          
-          {/* Main OTP Content Area - now centered */}
-          <div className="w-full flex flex-col justify-center items-center text-center">
-            
-            <div className="max-w-md w-full"> {/* Inner content wrapper */}
-              <h2 className="text-3xl font-bold text-gray-900 mb-4">OTP verification</h2>
-              <p className="text-gray-600 mb-8">
-                Please enter the OTP (One-Time Password) sent to your registered email/phone number to complete your verification.
+    <div className="min-h-screen flex items-center justify-center bg-[#F0F9FF] p-4 md:p-8 font-jakarta relative overflow-hidden">
+      {/* Background Decor */}
+      <div className="absolute top-0 right-0 w-[700px] h-[700px] bg-teal-100/20 rounded-full blur-[120px] -z-0"></div>
+      <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-blue-100/20 rounded-full blur-[100px] -z-0"></div>
+
+      <div className="w-full max-w-2xl bg-white shadow-2xl rounded-[40px] overflow-hidden border border-teal-50 relative z-10 px-10 py-16 md:px-20 md:py-20">
+        <div className="absolute top-0 left-0 w-full h-1.5 bg-blue-950"></div>
+
+        <header className="mb-12 flex justify-between items-center w-full">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-blue-950 rounded-xl flex items-center justify-center shadow-lg shadow-teal-100">
+              <GraduationCap size={24} className="text-teal-400" />
+            </div>
+            <span className="font-outfit text-3xl font-bold tracking-tight text-blue-950">
+              Campus <span className="text-teal-500">Core</span>
+            </span>
+          </div>
+          <button
+            onClick={() => navigate('/student-signup')}
+            className="text-[10px] font-bold text-blue-900/40 uppercase tracking-widest hover:text-blue-950 transition-colors flex items-center gap-2 group"
+          >
+            <ChevronLeft size={14} className="group-hover:-translate-x-1 transition-transform" />{' '}
+            Back
+          </button>
+        </header>
+
+        <div className="text-center mb-12">
+          <h2 className="text-6xl font-outfit font-bold tracking-tight text-blue-950 leading-none mb-6">
+            Secure <span className="text-teal-500">Validation</span>
+          </h2>
+          <div className="flex flex-col items-center gap-3">
+            <p className="inline-flex items-center gap-2.5 text-teal-600 bg-teal-50 px-5 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest border border-teal-100">
+              <Radio size={14} className="animate-pulse" /> Decrypting Communication Hub
+            </p>
+            <p className="text-blue-950/45 text-sm font-bold mt-4 uppercase tracking-[0.2em] leading-relaxed">
+              Target Terminal:{' '}
+              <span className="text-blue-950 underline underline-offset-8 decoration-teal-400/50 font-bold ml-1">
+                {email}
+              </span>
+            </p>
+          </div>
+        </div>
+
+        {devOTP && (
+          <div className="mb-10 p-6 bg-blue-50/50 border border-teal-50 rounded-[24px] flex items-center justify-between shadow-inner backdrop-blur-sm">
+            <div className="flex items-center gap-3">
+              <ShieldCheck size={20} className="text-teal-500" />
+              <span className="text-[10px] font-bold text-blue-900/40 uppercase tracking-[0.2em]">
+                Security Debug Mode
+              </span>
+            </div>
+            <span className="text-xl font-mono font-bold text-blue-950 tracking-[0.3em]">
+              {devOTP}
+            </span>
+          </div>
+        )}
+
+        <div className="space-y-12">
+          {studentId && (
+            <div className="w-full p-8 bg-blue-50/30 border border-teal-50 rounded-[30px] shadow-inner text-center group transition-all hover:bg-blue-50/50">
+              <p className="text-[10px] font-bold text-blue-900/30 uppercase tracking-[0.2em] mb-2">
+                Assigned Student Identity
               </p>
-
-              {/* OTP Input Fields */}
-              <div className="flex justify-center space-x-4 mb-6">
-                {otp.map((digit, index) => (
-                  <input
-                    key={index}
-                    type="text"
-                    maxLength="1"
-                    value={digit}
-                    onChange={(e) => handleOtpChange(e, index)}
-                    onKeyDown={(e) => handleKeyDown(e, index)}
-                    ref={(el) => (inputRefs.current[index] = el)}
-                    className="w-14 h-14 text-center text-2xl font-bold border border-gray-300 rounded-lg focus:ring-2 focus:ring-${primaryColor}-500 focus:border-${primaryColor}-500 transition duration-150"
-                  />
-                ))}
-              </div>
-
-              {/* Timer and Resend Link */}
-              <div className="flex justify-center items-center text-gray-600 text-sm mb-8 space-x-2">
-                <p>Remaining time: <span className="font-semibold">{remainingTime < 10 ? `0${remainingTime}` : remainingTime}s</span></p>
-                <span className="text-gray-300">|</span>
-                <button
-                  onClick={handleResendOtp}
-                  disabled={!resendEnabled}
-                  className={`font-semibold ${resendEnabled ? `text-${primaryColor}-600 hover:text-${primaryColor}-500` : 'text-gray-400 cursor-not-allowed'}`}
-                >
-                  Resend
-                </button>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex flex-col space-y-4">
-                <button
-                  onClick={handleVerify}
-                  className={`w-full py-3 bg-${primaryColor}-600 text-white font-semibold rounded-lg shadow-md hover:bg-${primaryColor}-700 transition duration-300 focus:outline-none focus:ring-2 focus:ring-${primaryColor}-500 focus:ring-offset-2`}
-                >
-                  Verify
-                </button>
-                <button
-                  onClick={handleCancel}
-                  className={`w-full py-3 border border-gray-300 text-gray-700 font-semibold rounded-lg shadow-sm hover:bg-gray-50 transition duration-300 focus:outline-none focus:ring-2 focus:ring-${primaryColor}-500 focus:ring-offset-2`}
-                >
-                  Cancel
-                </button>
-              </div>
-
-              {/* Info Link */}
-              <p className="text-xs text-gray-500 mt-10">
-                Wondering how we use this code for verification? 
-                <a href="#" className={`font-semibold text-${primaryColor}-600 hover:text-${primaryColor}-500 ml-1`}>
-                  Know here
-                </a>
+              <p className="text-4xl font-outfit font-bold text-blue-950 tracking-tight">
+                {studentId}
               </p>
-            </div> {/* End inner content wrapper */}
+            </div>
+          )}
+
+          <div className="flex justify-center gap-3 md:gap-4">
+            {otp.map((digit, index) => (
+              <input
+                key={index}
+                type="text"
+                maxLength="1"
+                value={digit}
+                onChange={(e) => handleOtpChange(e, index)}
+                onKeyDown={(e) => handleKeyDown(e, index)}
+                ref={(el) => (inputRefs.current[index] = el)}
+                className="w-12 h-16 md:w-16 md:h-20 text-center text-3xl font-outfit font-bold bg-blue-50/50 border border-teal-50 rounded-2xl focus:ring-4 focus:ring-teal-400/10 focus:border-teal-400 outline-none transition-all shadow-inner text-blue-950"
+              />
+            ))}
+          </div>
+
+          <div className="flex justify-between items-center px-4">
+            <div className="flex items-center gap-2.5 text-[10px] font-bold text-blue-900/40 uppercase tracking-widest">
+              <Timer size={14} className="text-teal-500" />
+              <span>
+                Sync Expires:{' '}
+                <span className="text-blue-950 font-bold ml-1">
+                  {remainingTime < 10 ? `0${remainingTime}` : remainingTime}s
+                </span>
+              </span>
+            </div>
+            <button
+              onClick={handleResendOtp}
+              disabled={!resendEnabled || isLoading}
+              className={`text-[10px] font-bold uppercase tracking-widest flex items-center gap-2.5 transition-all ${
+                resendEnabled && !isLoading
+                  ? 'text-teal-600 hover:text-teal-700 cursor-pointer'
+                  : 'text-blue-200 cursor-not-allowed'
+              }`}
+            >
+              <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
+              Resend Code
+            </button>
+          </div>
+
+          <div className="flex gap-4">
+            <button
+              onClick={() => navigate('/student-signup')}
+              disabled={isLoading}
+              className="flex-1 py-5 rounded-[24px] font-bold text-[10px] uppercase tracking-[0.2em] text-blue-900/40 hover:bg-red-50 hover:text-red-500 transition-all active:scale-[0.98]"
+            >
+              Abort Verification
+            </button>
+            <button
+              onClick={handleVerify}
+              disabled={isLoading || otp.join('').length !== 6}
+              className="flex-[2] py-5 bg-blue-950 text-white font-bold text-[11px] uppercase tracking-[0.3em] rounded-[24px] shadow-2xl shadow-teal-100/50 hover:bg-teal-600 transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-3 group"
+            >
+              {isLoading ? 'Verifying...' : 'Validate identity'}
+              <CheckCircle size={18} className="text-teal-400" />
+            </button>
           </div>
         </div>
       </div>
