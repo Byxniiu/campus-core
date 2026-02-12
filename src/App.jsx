@@ -69,12 +69,12 @@ function App() {
           <Route path="/faculty-dashboard" element={<FacultyDashboard />} />
 
           {/*Counselor*/}
-          <Route path="/counselor-login" element={<CounselorLogin />} />
-          <Route path="/counselor-home" element={<CounselorHome />} />
+          <Route path="/counselor-login" element={<AdminLogin />} />
+          <Route path="/counselor-home" element={<AdminCoreDashboard />} />
 
           {/*NON-TEACHING STAFFS*/}
-          <Route path="/non-teaching-login" element={<StaffLogin />} />
-          <Route path="/non-teaching-homepage" element={<StaffHomepage />} />
+          <Route path="/non-teaching-login" element={<AdminLogin />} />
+          <Route path="/non-teaching-homepage" element={<AdminCoreDashboard />} />
         </Routes>
       </>
     </div>

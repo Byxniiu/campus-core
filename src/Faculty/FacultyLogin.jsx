@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { authAPI } from '../api/auth';
@@ -11,6 +11,22 @@ const FacultyLogin = () => {
     identifier: '',
     password: '',
   });
+
+  const [blockedMessage, setBlockedMessage] = useState(null);
+
+  useEffect(() => {
+    const isBlocked = sessionStorage.getItem('accountBlocked');
+    const message = sessionStorage.getItem('blockMessage');
+
+    if (isBlocked === 'true' && message) {
+      setBlockedMessage(message);
+      toast.error(message, { duration: 6000 });
+
+      // Clear the session storage
+      sessionStorage.removeItem('accountBlocked');
+      sessionStorage.removeItem('blockMessage');
+    }
+  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -77,6 +93,13 @@ const FacultyLogin = () => {
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-slate-900/50 backdrop-blur-xl border border-slate-800 py-10 px-6 shadow-2xl rounded-[2.5rem] sm:px-12 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-600/10 rounded-full -mr-12 -mt-12 transition-transform hover:scale-150 duration-700"></div>
+
+          {blockedMessage && (
+            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center gap-3 text-red-100 animate-pulse">
+              <div className="w-2 h-2 rounded-full bg-red-500"></div>
+              <p className="text-xs font-bold uppercase tracking-wider">{blockedMessage}</p>
+            </div>
+          )}
 
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>

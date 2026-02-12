@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuthStore } from '../stores/useAuthStore';
+import { useStudentAuthStore } from '../../stores/useStudentAuthStore';
 import { authAPI } from '../api/auth';
 import toast from 'react-hot-toast';
 
 const Header = () => {
   const navigate = useNavigate();
-  const { user, logout, refreshToken } = useAuthStore();
+  const { user, logout, refreshToken } = useStudentAuthStore();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 

@@ -2,12 +2,21 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authAPI } from '../api/auth';
 import toast from 'react-hot-toast';
+import FacultyActiveStatusChecker from '../components/FacultyActiveStatusChecker';
 
 const FacultyDashboard = () => {
   const navigate = useNavigate();
   const [activePage, setActivePage] = useState('Overview');
   const [activeTab, setActiveTab] = useState('Default');
   const [activeChat, setActiveChat] = useState(null);
+  const [user, setUser] = useState(null);
+
+  React.useEffect(() => {
+    const savedUser = localStorage.getItem('faculty_user');
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
+    }
+  }, []);
 
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [selectedCounselor, setSelectedCounselor] = useState(null);
@@ -130,10 +139,28 @@ const FacultyDashboard = () => {
 
   return (
     <div className="flex h-screen bg-slate-900 text-slate-200">
+      <FacultyActiveStatusChecker />
       {/* ---------------- SIDEBAR ---------------- */}
       <aside className="w-72 bg-slate-800 p-4 flex flex-col gap-1 overflow-y-auto">
         <div className="mb-6 px-4">
           <h1 className="text-xl font-black text-indigo-400">FACULTY PORTAL</h1>
+        </div>
+
+        {/* --- USER PROFILE SECTION --- */}
+        <div className="mb-6 px-4 py-3 bg-slate-700/50 rounded-xl border border-slate-700 mx-2">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center font-black text-white">
+              {user?.firstName ? user.firstName[0] : 'F'}
+            </div>
+            <div className="overflow-hidden">
+              <p className="text-sm font-bold text-white truncate">
+                {user?.firstName} {user?.lastName}
+              </p>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest truncate">
+                {user?.department || 'Faculty'}
+              </p>
+            </div>
+          </div>
         </div>
 
         <SidebarButton

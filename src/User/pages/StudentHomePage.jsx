@@ -15,7 +15,7 @@ import {
   Anchor,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useAuthStore } from '../../stores/useAuthStore';
+import { useStudentAuthStore } from '../../stores/useStudentAuthStore';
 import { authAPI } from '../../api/auth';
 import toast from 'react-hot-toast';
 
@@ -28,7 +28,7 @@ import StaffTab from './Dashboard/StaffTab';
 
 const StudentHomePage = () => {
   const navigate = useNavigate();
-  const { user, logout, refreshToken } = useAuthStore();
+  const { user, logout, refreshToken } = useStudentAuthStore();
   const [activeTab, setActiveTab] = useState('Safety SOS');
 
   const handleLogout = async () => {

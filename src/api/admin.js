@@ -10,6 +10,8 @@ export const getAllTeachers = () => API.get('/admin/teachers');
 export const getAllCounselors = () => API.get('/admin/counselors');
 export const getAllStaff = () => API.get('/admin/staff');
 export const toggleUserStatus = (id) => API.patch(`/admin/users/${id}/toggle-status`);
+export const createCounselor = (data) => API.post('/admin/create-counselor', data);
+export const createStaff = (data) => API.post('/admin/create-staff', data);
 
 // Faculty Approval Management
 export const getPendingFaculty = () => API.get('/admin/pending-faculty');
@@ -19,6 +21,15 @@ export const rejectFaculty = (id) => API.post(`/admin/reject-faculty/${id}`);
 // Resources
 export const getAllSOSAlerts = () => API.get('/admin/sos');
 export const getAllEvents = () => API.get('/admin/events');
+
+// Counseling & Help Requests
+export const getCounselingRequests = () => API.get('/counseling/requests');
+export const acceptCounselingRequest = (id) => API.patch(`/counseling/requests/${id}/accept`);
+export const rejectCounselingRequest = (id) => API.patch(`/counseling/requests/${id}/reject`);
+
+export const getHelpRequests = () => API.get('/emergency-assist');
+export const acceptHelpRequest = (id) => API.put(`/emergency-assist/${id}/assign`);
+export const rejectHelpRequest = (id) => API.put(`/emergency-assist/${id}/reject`);
 
 // Export as default object for convenience
 export const adminAPI = {
@@ -32,8 +43,16 @@ export const adminAPI = {
   getPendingFaculty,
   approveFaculty,
   rejectFaculty,
+  createCounselor,
+  createStaff,
   getAllSOSAlerts,
   getAllEvents,
+  getCounselingRequests,
+  acceptCounselingRequest,
+  rejectCounselingRequest,
+  getHelpRequests,
+  acceptHelpRequest,
+  rejectHelpRequest,
 };
 
 export default adminAPI;

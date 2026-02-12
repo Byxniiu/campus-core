@@ -38,6 +38,16 @@ client.interceptors.request.use(
         storageType = 'legacy';
         console.log('📦 Fallback to auth-storage:', !!authStorage);
       }
+
+      // Check for faculty_token if others are missing
+      if (!authStorage) {
+        const facultyToken = localStorage.getItem('faculty_token');
+        if (facultyToken) {
+          config.headers.Authorization = `Bearer ${facultyToken}`;
+          console.log('✅ Using faculty_token from localStorage');
+          return config;
+        }
+      }
     }
 
     if (authStorage) {
@@ -82,6 +92,11 @@ client.interceptors.response.use(
       localStorage.removeItem('student-auth');
       localStorage.removeItem('auth-storage'); // legacy
 
+      // Also clear faculty storage if it exists
+      localStorage.removeItem('faculty_token');
+      localStorage.removeItem('faculty_refresh_token');
+      localStorage.removeItem('faculty_user');
+
       // Store the block message to show on login page
       sessionStorage.setItem('accountBlocked', 'true');
       sessionStorage.setItem(
@@ -89,8 +104,13 @@ client.interceptors.response.use(
         'Your account has been blocked by the administrator. Please contact support for assistance.'
       );
 
-      // Redirect to login
-      window.location.href = '/student-signin';
+      // Redirect logic based on current path or token type
+      const isFacultyPath = window.location.pathname.includes('/faculty');
+      if (isFacultyPath) {
+        window.location.href = '/faculty-login';
+      } else {
+        window.location.href = '/student-signin';
+      }
 
       return Promise.reject({
         message: 'Account blocked by administrator',

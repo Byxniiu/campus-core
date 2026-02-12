@@ -83,9 +83,11 @@ const AdminLogin = () => {
               />
             </svg>
           </div>
-          <h1 className="text-white text-2xl font-black tracking-widest">ADMIN / CAMPUS CORE</h1>
+          <h1 className="text-white text-2xl font-black tracking-widest uppercase italic">
+            PROFESSIONAL HUB
+          </h1>
           <p className="text-slate-400 text-xs mt-2 uppercase tracking-widest font-bold">
-            Secure Access Gateway
+            Authorized Personnel Access Only
           </p>
         </div>
 
