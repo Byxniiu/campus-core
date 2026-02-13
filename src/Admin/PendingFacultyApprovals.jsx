@@ -89,17 +89,21 @@ const PendingFacultyApprovals = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-white mb-2">Pending Faculty Approvals</h1>
-          <p className="text-gray-400">Review and approve faculty registration applications</p>
+          <h1 className="text-3xl font-black text-blue-950 uppercase italic tracking-tighter mb-2">
+            Pending Faculty <span className="text-teal-600">Approvals</span>
+          </h1>
+          <p className="text-[10px] text-teal-600 font-black uppercase tracking-widest">
+            Review and approve faculty registration applications
+          </p>
         </div>
-        <div className="bg-teal-500/20 text-teal-400 px-4 py-2 rounded-lg font-semibold">
+        <div className="bg-teal-50 border border-teal-100 text-teal-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest">
           {pendingFaculty.length} Pending
         </div>
       </div>
 
       {/* No Pending Faculty */}
       {pendingFaculty.length === 0 ? (
-        <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-12 text-center">
+        <div className="bg-white rounded-[3rem] border border-slate-200 p-12 text-center shadow-sm">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-green-500/20 rounded-full mb-4">
             <svg
               className="w-8 h-8 text-green-400"
@@ -115,8 +119,12 @@ const PendingFacultyApprovals = () => {
               />
             </svg>
           </div>
-          <h3 className="text-xl font-semibold text-white mb-2">All Caught Up!</h3>
-          <p className="text-gray-400">No pending faculty applications at the moment.</p>
+          <h3 className="text-xl font-black text-blue-900 uppercase italic tracking-tighter mb-2">
+            All Caught <span className="text-teal-600">Up!</span>
+          </h3>
+          <p className="text-[10px] text-teal-600 font-bold uppercase tracking-widest">
+            No pending faculty applications at the moment.
+          </p>
         </div>
       ) : (
         /* Faculty List */
@@ -124,7 +132,7 @@ const PendingFacultyApprovals = () => {
           {pendingFaculty.map((faculty) => (
             <div
               key={faculty._id}
-              className="bg-slate-800/50 rounded-xl border border-slate-700 p-6 hover:border-teal-500/50 transition-all"
+              className="bg-white rounded-[2.5rem] border border-slate-200 p-8 hover:shadow-xl transition-all group"
             >
               <div className="flex items-start justify-between">
                 {/* Faculty Info */}
@@ -135,36 +143,44 @@ const PendingFacultyApprovals = () => {
                       {faculty.lastName[0]}
                     </div>
                     <div>
-                      <h3 className="text-lg font-semibold text-white">
+                      <h3 className="text-lg font-black text-blue-900 uppercase">
                         {faculty.firstName} {faculty.lastName}
                       </h3>
-                      <p className="text-sm text-gray-400">{faculty.email}</p>
+                      <p className="text-[10px] text-slate-400 font-bold">{faculty.email}</p>
                     </div>
                   </div>
 
                   {/* Details Grid */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
                     <div>
-                      <p className="text-xs text-gray-500 uppercase font-semibold mb-1">
+                      <p className="text-[10px] text-slate-400 uppercase font-black mb-1">
                         Department
                       </p>
-                      <p className="text-sm text-white">{faculty.department || 'N/A'}</p>
+                      <p className="text-xs text-blue-950 font-bold">
+                        {faculty.department || 'N/A'}
+                      </p>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Section</p>
-                      <p className="text-sm text-white">{faculty.section || 'N/A'}</p>
+                      <p className="text-[10px] text-slate-400 uppercase font-black mb-1">
+                        Section
+                      </p>
+                      <p className="text-xs text-blue-950 font-bold">{faculty.section || 'N/A'}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500 uppercase font-semibold mb-1">
+                      <p className="text-[10px] text-slate-400 uppercase font-black mb-1">
                         Designation
                       </p>
-                      <p className="text-sm text-white">{faculty.designation || 'N/A'}</p>
+                      <p className="text-xs text-blue-950 font-bold">
+                        {faculty.designation || 'N/A'}
+                      </p>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500 uppercase font-semibold mb-1">
+                      <p className="text-[10px] text-slate-400 uppercase font-black mb-1">
                         Registered
                       </p>
-                      <p className="text-sm text-white">{formatDate(faculty.createdAt)}</p>
+                      <p className="text-xs text-blue-950 font-bold">
+                        {formatDate(faculty.createdAt)}
+                      </p>
                     </div>
                   </div>
 
@@ -195,7 +211,7 @@ const PendingFacultyApprovals = () => {
                       handleApprove(faculty._id, `${faculty.firstName} ${faculty.lastName}`)
                     }
                     disabled={processingId === faculty._id}
-                    className="px-6 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold rounded-lg hover:from-green-600 hover:to-emerald-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                    className="px-6 py-2 bg-blue-600 text-white font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 shadow-lg shadow-blue-200"
                   >
                     {processingId === faculty._id ? (
                       <>
@@ -245,7 +261,7 @@ const PendingFacultyApprovals = () => {
                       handleReject(faculty._id, `${faculty.firstName} ${faculty.lastName}`)
                     }
                     disabled={processingId === faculty._id}
-                    className="px-6 py-2 bg-red-500/20 text-red-400 border border-red-500/50 font-semibold rounded-lg hover:bg-red-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                    className="px-6 py-2 bg-red-50 text-red-500 border border-red-100 font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-red-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path

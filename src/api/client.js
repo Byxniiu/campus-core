@@ -4,68 +4,63 @@ import axios from 'axios';
 const client = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
   timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
 });
 
 // Request interceptor - attach token
 client.interceptors.request.use(
   (config) => {
-    let authStorage = null;
-    let storageType = 'none';
-
-    // Intelligently select the correct auth store based on the endpoint
+    // Intelligent Token Selection Logic
     const isAdminRoute = config.url.includes('/admin/');
+    const isFacultyPage = window.location.pathname.includes('/faculty');
+    const isStudentPage =
+      window.location.pathname.includes('/student-') || window.location.pathname === '/';
 
-    console.log('🔍 API Request to:', config.url);
-    console.log('🎯 Is admin route:', isAdminRoute);
+    console.log(
+      ` API Request: ${config.url} | Context: ${isFacultyPage ? 'Faculty' : isStudentPage ? 'Student' : 'General'}`
+    );
 
-    if (isAdminRoute) {
-      // For admin routes, use admin-auth
-      authStorage = localStorage.getItem('admin-auth');
-      storageType = 'admin';
-      console.log('📦 Checking admin-auth:', !!authStorage);
-    } else {
-      // For non-admin routes, use student-auth
-      authStorage = localStorage.getItem('student-auth');
-      storageType = 'student';
-      console.log('📦 Checking student-auth:', !!authStorage);
+    // Determine the best token to use
+    let token = null;
 
-      // Fallback to old auth-storage for backward compatibility
-      if (!authStorage) {
-        authStorage = localStorage.getItem('auth-storage');
-        storageType = 'legacy';
-        console.log('📦 Fallback to auth-storage:', !!authStorage);
-      }
-
-      // Check for faculty_token if others are missing
-      if (!authStorage) {
-        const facultyToken = localStorage.getItem('faculty_token');
-        if (facultyToken) {
-          config.headers.Authorization = `Bearer ${facultyToken}`;
-          console.log('✅ Using faculty_token from localStorage');
-          return config;
-        }
+    // 1. Try Faculty Token if on faculty page or calling faculty-specific routes
+    if (isFacultyPage) {
+      token = localStorage.getItem('faculty_token');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+        console.log(' Using Faculty Token');
+        return config;
       }
     }
 
-    if (authStorage) {
-      try {
-        const { state } = JSON.parse(authStorage);
-        if (state?.token) {
-          config.headers.Authorization = `Bearer ${state.token}`;
-          console.log(`✅ Using ${storageType} token for request`);
-          console.log('👤 User role:', state.user?.role);
-          console.log('🔑 Token preview:', state.token.substring(0, 20) + '...');
-        } else {
-          console.log('❌ No token found in', storageType, 'storage');
-        }
-      } catch (error) {
-        console.error('❌ Error parsing auth storage:', error);
+    // 2. Try Admin Token if it's an admin route
+    if (isAdminRoute) {
+      const adminAuth = localStorage.getItem('admin-auth');
+      if (adminAuth) {
+        try {
+          const parsed = JSON.parse(adminAuth);
+          token = parsed.state?.token || parsed.token;
+          if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+            console.log('✅ Using Admin Token');
+            return config;
+          }
+        } catch (e) {} // eslint-disable-line no-empty, no-unused-vars
       }
-    } else {
-      console.log('❌ No auth storage found - request will be unauthenticated');
+    }
+
+    // 3. Fallback to Student Token (Zustand state)
+    const studentAuth =
+      localStorage.getItem('student-auth') || localStorage.getItem('auth-storage');
+    if (studentAuth) {
+      try {
+        const parsed = JSON.parse(studentAuth);
+        token = parsed.state?.token || parsed.token;
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+          console.log(' Using Student Token');
+          return config;
+        }
+      } catch (e) {} // eslint-disable-line no-empty, no-unused-vars
     }
 
     return config;

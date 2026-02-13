@@ -60,15 +60,15 @@ const AdminLogin = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 relative overflow-hidden">
       {/* Background Decorative Elements */}
-      <div className="absolute top-0 -left-20 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl"></div>
-      <div className="absolute bottom-0 -right-20 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl"></div>
+      <div className="absolute top-0 -left-20 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl"></div>
+      <div className="absolute bottom-0 -right-20 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl"></div>
 
       <div className="max-w-md w-full bg-white rounded-3xl shadow-2xl overflow-hidden relative z-10">
         {/* Header */}
-        <div className="bg-slate-800 p-8 text-center">
-          <div className="inline-block p-3 bg-indigo-600 rounded-2xl mb-4">
+        <div className="bg-white p-8 text-center border-b border-slate-100">
+          <div className="inline-block p-3 bg-blue-600 rounded-2xl mb-4 text-white shadow-lg shadow-blue-100">
             <svg
               className="w-8 h-8 text-white"
               fill="none"
@@ -83,10 +83,10 @@ const AdminLogin = () => {
               />
             </svg>
           </div>
-          <h1 className="text-white text-2xl font-black tracking-widest uppercase italic">
-            PROFESSIONAL HUB
+          <h1 className="text-blue-900 text-2xl font-black tracking-widest uppercase italic">
+            PROFESSIONAL <span className="text-teal-600">HUB</span>
           </h1>
-          <p className="text-slate-400 text-xs mt-2 uppercase tracking-widest font-bold">
+          <p className="text-teal-600 text-xs mt-2 uppercase tracking-widest font-bold">
             Authorized Personnel Access Only
           </p>
         </div>
@@ -104,7 +104,7 @@ const AdminLogin = () => {
                 value={credentials.identifier}
                 onChange={handleInputChange}
                 placeholder="admin@campuscore.com"
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition"
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition"
               />
             </div>
             <div>
@@ -118,13 +118,13 @@ const AdminLogin = () => {
                 value={credentials.password}
                 onChange={handleInputChange}
                 placeholder="••••••••"
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition"
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition"
               />
             </div>
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-indigo-600 text-white py-4 rounded-xl font-black text-sm uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 flex justify-center items-center"
+              className="w-full bg-blue-600 text-white py-4 rounded-xl font-black text-sm uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-200 flex justify-center items-center"
             >
               {loading ? (
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
@@ -137,8 +137,8 @@ const AdminLogin = () => {
 
         {/* Footer info */}
         <div className="bg-slate-50 p-6 border-t border-slate-100">
-          <p className="text-[10px] text-slate-400 text-center uppercase tracking-tighter">
-            Authorized Personnel Only • Secure Campus Gateway
+          <p className="text-[10px] text-teal-600 font-bold text-center uppercase tracking-tighter">
+            Authorized <span className="text-blue-900">Personnel Only</span> • Secure Campus Gateway
           </p>
         </div>
       </div>

@@ -45,20 +45,20 @@ const AddStaffModal = ({ isOpen, onClose, onSuccess }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-4 overflow-y-auto font-jakarta">
-      <div className="bg-slate-800 border border-slate-700 w-full max-w-2xl rounded-[2.5rem] shadow-2xl my-8">
-        <div className="p-8 border-b border-slate-700 flex justify-between items-center">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 overflow-y-auto font-jakarta">
+      <div className="bg-white border border-slate-200 w-full max-w-2xl rounded-[2.5rem] shadow-2xl my-8">
+        <div className="p-8 border-b border-slate-100 flex justify-between items-center">
           <div>
-            <h2 className="text-2xl font-black text-white uppercase tracking-tighter">
+            <h2 className="text-2xl font-black text-blue-900 uppercase tracking-tighter">
               Add Non-Teaching Staff
             </h2>
-            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">
+            <p className="text-[10px] text-blue-500 font-bold uppercase tracking-widest mt-1">
               Operational Support Node
             </p>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-slate-700 rounded-xl transition-colors text-slate-400"
+            className="p-2 hover:bg-slate-50 rounded-xl transition-colors text-slate-400 hover:text-blue-600"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
@@ -77,7 +77,7 @@ const AddStaffModal = ({ isOpen, onClose, onSuccess }) => {
         >
           <div className="grid grid-cols-2 gap-6">
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">
                 First Name
               </label>
               <input
@@ -86,11 +86,11 @@ const AddStaffModal = ({ isOpen, onClose, onSuccess }) => {
                 value={formData.firstName}
                 onChange={handleChange}
                 placeholder="Staff Member"
-                className="w-full bg-slate-900 border border-slate-700 rounded-2xl px-5 py-3.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                className="w-full bg-white border border-slate-200 rounded-2xl px-5 py-3.5 text-sm text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all font-bold"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">
                 Last Name
               </label>
               <input
@@ -99,14 +99,14 @@ const AddStaffModal = ({ isOpen, onClose, onSuccess }) => {
                 value={formData.lastName}
                 onChange={handleChange}
                 placeholder="Name"
-                className="w-full bg-slate-900 border border-slate-700 rounded-2xl px-5 py-3.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                className="w-full bg-white border border-slate-200 rounded-2xl px-5 py-3.5 text-sm text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all font-bold"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-6">
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">
                 Email Address
               </label>
               <input
@@ -116,11 +116,11 @@ const AddStaffModal = ({ isOpen, onClose, onSuccess }) => {
                 value={formData.email}
                 onChange={handleChange}
                 placeholder="staff@campuscore.com"
-                className="w-full bg-slate-900 border border-slate-700 rounded-2xl px-5 py-3.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                className="w-full bg-white border border-slate-200 rounded-2xl px-5 py-3.5 text-sm text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all font-bold"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">
                 Security Password
               </label>
               <input
@@ -130,21 +130,21 @@ const AddStaffModal = ({ isOpen, onClose, onSuccess }) => {
                 value={formData.password}
                 onChange={handleChange}
                 placeholder="••••••••"
-                className="w-full bg-slate-900 border border-slate-700 rounded-2xl px-5 py-3.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                className="w-full bg-white border border-slate-200 rounded-2xl px-5 py-3.5 text-sm text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all font-bold"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-6">
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">
                 Department Category
               </label>
               <select
                 name="category"
                 value={formData.category}
                 onChange={handleChange}
-                className="w-full bg-slate-900 border border-slate-700 rounded-2xl px-5 py-3.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors appearance-none"
+                className="w-full bg-white border border-slate-200 rounded-2xl px-5 py-3.5 text-sm text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all font-bold appearance-none"
               >
                 <option value="Office">Office Administration</option>
                 <option value="Help Desk">Student Help Desk</option>
@@ -155,7 +155,7 @@ const AddStaffModal = ({ isOpen, onClose, onSuccess }) => {
               </select>
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">
                 Contact Phone
               </label>
               <input
@@ -164,13 +164,13 @@ const AddStaffModal = ({ isOpen, onClose, onSuccess }) => {
                 value={formData.phone}
                 onChange={handleChange}
                 placeholder="+1 234 567 890"
-                className="w-full bg-slate-900 border border-slate-700 rounded-2xl px-5 py-3.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                className="w-full bg-white border border-slate-200 rounded-2xl px-5 py-3.5 text-sm text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all font-bold"
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">
               Availability / Office Hours
             </label>
             <input
@@ -179,12 +179,12 @@ const AddStaffModal = ({ isOpen, onClose, onSuccess }) => {
               value={formData.availability}
               onChange={handleChange}
               placeholder="Mon-Fri, 9:00 AM - 6:00 PM"
-              className="w-full bg-slate-900 border border-slate-700 rounded-2xl px-5 py-3.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
+              className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-sm text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all font-bold"
             />
           </div>
 
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">
               Role Description / Support Details
             </label>
             <textarea
@@ -194,7 +194,7 @@ const AddStaffModal = ({ isOpen, onClose, onSuccess }) => {
               onChange={handleChange}
               rows="3"
               placeholder="Describe how this staff member assists students (e.g., handles admission queries, help incoming freshmen...)"
-              className="w-full bg-slate-900 border border-slate-700 rounded-2xl px-5 py-3.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors resize-none"
+              className="w-full bg-white border border-slate-200 rounded-2xl px-5 py-3.5 text-sm text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all font-bold resize-none"
             ></textarea>
           </div>
 
@@ -205,7 +205,7 @@ const AddStaffModal = ({ isOpen, onClose, onSuccess }) => {
               name="isActive"
               checked={formData.isActive}
               onChange={handleChange}
-              className="w-5 h-5 bg-slate-900 border border-slate-700 rounded-lg text-indigo-600 focus:ring-indigo-500"
+              className="w-5 h-5 bg-white border border-slate-200 rounded-lg text-blue-600 focus:ring-blue-500"
             />
             <label
               htmlFor="isActiveStaff"
@@ -219,14 +219,14 @@ const AddStaffModal = ({ isOpen, onClose, onSuccess }) => {
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-8 py-4 bg-slate-700 hover:bg-slate-600 text-white font-black text-[10px] uppercase tracking-widest rounded-2xl transition-all"
+              className="flex-1 px-8 py-4 bg-slate-100 hover:bg-slate-200 text-slate-500 font-black text-[10px] uppercase tracking-widest rounded-2xl transition-all"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex-[2] px-8 py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-black text-[10px] uppercase tracking-widest rounded-2xl transition-all shadow-lg shadow-indigo-600/20 active:scale-[0.98] disabled:opacity-50"
+              className="flex-[2] px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white font-black text-[10px] uppercase tracking-widest rounded-2xl transition-all shadow-lg shadow-blue-600/20 active:scale-[0.98] disabled:opacity-50"
             >
               {loading ? 'Processing...' : 'Register Staff Account'}
             </button>

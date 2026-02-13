@@ -71,169 +71,158 @@ const StudentHomePage = () => {
   };
 
   return (
-    <div className="flex h-screen bg-[#F0F9FF] text-blue-950 font-jakarta overflow-hidden">
-      {/* SIDEBAR */}
-      <motion.aside
-        initial={{ x: -100, opacity: 0 }}
-        animate={{ x: 0, opacity: 1 }}
-        transition={{ duration: 0.8, ease: 'easeOut' }}
-        className="w-80 bg-blue-950 flex flex-col shadow-[12px_0_40px_rgba(30,58,138,0.2)] z-20 relative"
-      >
-        <div className="absolute top-0 right-0 w-48 h-48 bg-teal-400/5 rounded-full blur-[80px] pointer-events-none"></div>
+    <div className="flex flex-col h-screen bg-[#F0F9FF] text-blue-950 font-jakarta overflow-hidden selection:bg-teal-100">
+      {/* TOP NAVIGATION BAR */}
+      <header className="h-20 px-6 lg:px-8 flex items-center justify-between bg-white/80 backdrop-blur-xl border-b border-teal-50 z-50 shrink-0 shadow-sm relative">
+        {/* Background Decor */}
+        <div className="absolute top-0 right-0 w-[500px] h-20 bg-gradient-to-l from-teal-50/50 to-transparent pointer-events-none -z-10"></div>
 
-        <div
-          className="p-10 border-b border-white/5 flex items-center gap-4 group cursor-pointer"
-          onClick={() => navigate('/')}
-        >
-          <motion.div
-            whileHover={{ rotate: 12 }}
-            className="bg-white/5 p-3 rounded-2xl border border-white/10 shadow-lg group-hover:bg-teal-400/10 transition-colors"
-          >
-            <Shield className="w-6 h-6 text-teal-400" />
-          </motion.div>
-          <span className="font-outfit text-2xl font-bold tracking-tight text-white uppercase">
-            Campus <span className="text-teal-400">Core</span>
-          </span>
+        {/* LOGO AREA */}
+        <div className="flex items-center gap-3 cursor-pointer group" onClick={() => navigate('/')}>
+          <div className="w-10 h-10 bg-blue-950 rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/10 group-hover:rotate-12 transition-transform duration-300">
+            <Shield className="w-5 h-5 text-teal-400" />
+          </div>
+          <div className="flex flex-col">
+            <span className="font-outfit text-xl font-black tracking-tight text-blue-950 uppercase leading-none">
+              Campus <span className="text-teal-500">Core</span>
+            </span>
+            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.25em] leading-none mt-1">
+              Student Portal
+            </span>
+          </div>
         </div>
 
-        <div className="p-8">
-          <motion.div
-            whileHover={{ scale: 1.02 }}
-            className="bg-white/5 p-6 rounded-[32px] flex items-center gap-4 border border-white/5 mb-8 shadow-inner"
-          >
-            <div className="w-14 h-14 bg-teal-400 rounded-2xl flex items-center justify-center text-blue-950 font-bold text-xl shadow-[0_8px_20px_rgba(45,212,191,0.3)]">
-              {user?.firstName?.[0]}
-              {user?.lastName?.[0]}
-            </div>
-            <div className="flex-1 truncate">
-              <p className="text-base font-bold text-white tracking-tight truncate">
-                {user?.firstName} {user?.lastName}
-              </p>
-              <p className="text-[10px] font-bold text-teal-400/50 uppercase tracking-[0.2em] mt-1.5 flex items-center gap-2">
-                <div className="w-1 h-1 bg-teal-400 rounded-full"></div> Verified
-              </p>
-            </div>
-          </motion.div>
-        </div>
-
-        <nav className="flex-1 px-6 space-y-3 overflow-y-auto scrollbar-none">
-          <p className="px-4 text-[9px] font-bold text-white/20 uppercase tracking-[0.3em] mb-4">
-            Operational Nodes
-          </p>
-          {navItems.map((item, index) => (
-            <motion.button
+        {/* CENTER NAVIGATION - DESKTOP */}
+        <nav className="flex overflow-x-auto items-center gap-1 p-1.5 bg-white border border-slate-100 shadow-sm rounded-full mx-4 md:mx-8 scrollbar-hide">
+          {navItems.map((item) => (
+            <button
               key={item.id}
-              initial={{ x: -20, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              transition={{ delay: 0.1 * index + 0.3 }}
-              whileHover={{ scale: 1.02, x: 4 }}
-              whileTap={{ scale: 0.98 }}
               onClick={() => setActiveTab(item.id)}
-              className={`w-full flex items-center justify-between p-4.5 rounded-[22px] transition-all duration-300 group ${
+              className={`relative px-5 py-2.5 rounded-full flex items-center gap-2.5 text-xs font-bold uppercase tracking-wider transition-all duration-300 ${
                 activeTab === item.id
-                  ? 'bg-white/10 text-teal-400 shadow-xl border border-white/10 translate-x-1'
-                  : 'hover:bg-white/5 text-white/40 hover:text-white'
+                  ? 'text-white'
+                  : 'text-slate-500 hover:text-blue-600 hover:bg-slate-50'
               }`}
             >
-              <div className="flex items-center gap-5">
-                <div
-                  className={`p-2.5 rounded-xl transition-all duration-300 ${activeTab === item.id ? 'bg-teal-400 text-blue-950 shadow-lg shadow-teal-400/20' : 'bg-white/5 group-hover:bg-white/10'}`}
-                >
-                  {React.cloneElement(item.icon, { size: 18 })}
-                </div>
-                <span
-                  className={`text-xs font-bold tracking-widest uppercase ${activeTab === item.id ? 'text-white' : 'text-white/30 group-hover:text-white/60'}`}
-                >
-                  {item.id}
-                </span>
-              </div>
-              <ChevronRight
-                size={14}
-                className={`transition-all duration-500 ${activeTab === item.id ? 'text-teal-400 translate-x-1' : 'text-white/10 group-hover:text-white/20'}`}
-              />
-            </motion.button>
+              {activeTab === item.id && (
+                <motion.div
+                  layoutId="activeTabBg"
+                  className="absolute inset-0 bg-blue-950 rounded-full shadow-lg shadow-blue-900/20"
+                  initial={false}
+                  transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+                />
+              )}
+              <span className="relative z-10 flex items-center justify-center">
+                {React.cloneElement(item.icon, {
+                  size: 16,
+                  className: activeTab === item.id ? 'text-teal-400' : 'opacity-70',
+                  strokeWidth: 2.5,
+                })}
+              </span>
+              <span className="relative z-10">{item.id}</span>
+            </button>
           ))}
         </nav>
 
-        <div className="p-8 border-t border-white/5">
-          <motion.button
-            whileHover={{ x: 5, color: '#f87171' }}
-            onClick={handleLogout}
-            className="w-full flex items-center gap-4 p-5 rounded-[22px] transition font-bold text-[10px] text-white/20 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 uppercase tracking-[0.2em]"
-          >
-            <LogOut size={18} /> Sign Out Node
-          </motion.button>
-        </div>
-      </motion.aside>
+        {/* RIGHT ACTIONS */}
+        <div className="flex items-center gap-6">
+          {/* Notifications */}
+          <button className="relative p-2.5 text-slate-400 hover:text-blue-600 hover:bg-white rounded-xl transition-all">
+            <Bell size={20} />
+            <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
+          </button>
 
-      {/* MAIN CONTENT AREA */}
-      <main className="flex-1 flex flex-col min-w-0 relative">
-        {/* Background Decor */}
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-teal-100/20 rounded-full blur-[140px] -z-10 pointer-events-none"></div>
-        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-blue-100/10 rounded-full blur-[120px] -z-10 pointer-events-none text-blue-950/5">
-          <Anchor size={400} />
-        </div>
+          <div className="h-8 w-[1px] bg-slate-200 hidden sm:block"></div>
 
-        <header className="h-28 px-12 flex items-center justify-between bg-white/60 backdrop-blur-2xl border-b border-teal-50 shrink-0 z-10">
-          <motion.div
-            initial={{ y: -20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.6 }}
-          >
-            <h2 className="text-4xl font-outfit font-bold text-blue-950 tracking-tight uppercase">
-              {activeTab}
-            </h2>
-            <p className="text-[10px] text-blue-950/30 font-bold uppercase tracking-[0.2em] mt-3 flex items-center gap-2">
-              <Radio size={14} className="text-teal-500 animate-pulse" /> Active Node •{' '}
-              {new Date().toLocaleDateString('en-US', {
-                weekday: 'long',
-                month: 'long',
-                day: 'numeric',
-              })}
-            </p>
-          </motion.div>
-
-          <div className="flex items-center gap-8">
-            <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              className="relative p-3.5 bg-white text-blue-300 hover:text-teal-500 hover:bg-blue-50/50 rounded-2xl transition-all border border-teal-50 shadow-sm group"
-            >
-              <Bell size={22} className="group-hover:rotate-12 transition-transform" />
-              <span className="absolute top-3.5 right-3.5 w-2.5 h-2.5 bg-teal-500 rounded-full border-2 border-white shadow-[0_0_8px_rgba(45,212,191,1)]"></span>
-            </motion.button>
-            <div className="h-10 w-[1px] bg-teal-100/50 mx-2"></div>
-            <div className="text-right hidden lg:block">
-              <p className="text-xs font-bold text-blue-950 tracking-tight">
-                {user?.studentId || 'U-7281-NODE'}
+          {/* User Profile */}
+          <div className="flex items-center gap-3 group cursor-pointer">
+            <div className="text-right hidden md:block">
+              <p className="text-xs font-black text-blue-950 uppercase tracking-tight leading-tight">
+                {user?.firstName} {user?.lastName}
               </p>
-              <p className="text-[10px] text-teal-600 font-bold uppercase tracking-[0.2em] mt-1.5 flex items-center justify-end gap-2">
-                <div className="w-1.5 h-1.5 bg-teal-400 rounded-full animate-pulse"></div>{' '}
-                {user?.department || 'Advanced Studies'}
+              <p className="text-[9px] text-teal-600 font-bold uppercase tracking-[0.1em] mt-0.5">
+                {user?.studentId || 'ID Pending'}
               </p>
             </div>
-            <motion.div
-              whileHover={{ scale: 1.1, rotate: 5 }}
-              className="w-12 h-12 rounded-2xl bg-blue-950 text-teal-400 flex items-center justify-center font-bold text-lg border border-blue-900 shadow-xl shadow-teal-100 cursor-pointer"
-            >
-              {user?.firstName?.[0]}
-            </motion.div>
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-teal-400 to-teal-500 p-[2px] shadow-lg shadow-teal-500/20 group-hover:shadow-teal-500/40 transition-shadow">
+              <div className="w-full h-full bg-white rounded-[10px] flex items-center justify-center text-teal-600 font-black text-lg">
+                {user?.firstName?.[0]}
+              </div>
+            </div>
           </div>
-        </header>
 
-        <div className="flex-1 overflow-y-auto p-12 relative z-0 scrollbar-none">
-          <AnimatePresence mode="wait">
+          {/* Logout - Small icon button now */}
+          <button
+            onClick={handleLogout}
+            className="p-2.5 bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all shadow-sm"
+            title="Sign Out"
+          >
+            <LogOut size={18} />
+          </button>
+        </div>
+      </header>
+
+      {/* MAIN CONTENT AREA */}
+      <main className="flex-1 overflow-y-auto relative scrollbar-thin scrollbar-thumb-teal-100 scrollbar-track-transparent">
+        {/* Decorative Background Elements */}
+        <div className="fixed top-20 left-0 w-full h-full overflow-hidden pointer-events-none -z-10">
+          <div className="absolute top-[10%] left-[5%] w-[500px] h-[500px] bg-blue-200/5 rounded-full blur-[100px]"></div>
+          <div className="absolute bottom-[10%] right-[5%] w-[500px] h-[500px] bg-teal-200/5 rounded-full blur-[100px]"></div>
+        </div>
+
+        <div className="max-w-7xl mx-auto p-6 lg:p-10 flex flex-col min-h-full">
+          {/* Page Header */}
+          <div className="mb-10 flex items-end justify-between">
             <motion.div
-              key={activeTab}
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
-              exit={{ y: -20, opacity: 0 }}
-              transition={{ duration: 0.4, ease: 'easeInOut' }}
-              className="max-w-7xl mx-auto"
+              transition={{ duration: 0.5 }}
             >
-              {renderActiveTab()}
+              <div className="flex items-center gap-3 text-teal-600 mb-2">
+                <div className="w-2 h-2 rounded-full bg-teal-500 animate-pulse"></div>
+                <span className="text-[10px] font-black uppercase tracking-[0.3em]">
+                  Active Module
+                </span>
+              </div>
+              <h1 className="text-4xl lg:text-5xl font-outfit font-black text-blue-950 tracking-tighter uppercase relative inline-block">
+                {activeTab}
+                <span className="absolute -bottom-2 left-0 w-1/3 h-1.5 bg-teal-400 rounded-full"></span>
+              </h1>
             </motion.div>
-          </AnimatePresence>
+
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="hidden md:flex flex-col items-end"
+            >
+              <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">
+                {new Date().toLocaleDateString('en-US', { weekday: 'long' })}
+              </p>
+              <p className="text-xs text-slate-300 font-semibold">
+                {new Date().toLocaleDateString('en-US', {
+                  month: 'long',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}
+              </p>
+            </motion.div>
+          </div>
+
+          {/* Dynamic Content */}
+          <div className="flex-1 relative z-0">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeTab}
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: -20, opacity: 0 }}
+                transition={{ duration: 0.4, ease: 'easeOut' }}
+                className="h-full"
+              >
+                {renderActiveTab()}
+              </motion.div>
+            </AnimatePresence>
+          </div>
         </div>
       </main>
     </div>

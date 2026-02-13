@@ -237,15 +237,33 @@ const StudentSignUpPage = () => {
                 <label className="text-[10px] font-bold text-blue-950/20 uppercase tracking-[0.2em] ml-1">
                   Knowledge Sector (Dept)
                 </label>
-                <input
-                  type="text"
+                <select
                   id="department"
                   value={formData.department}
                   onChange={handleChange}
-                  placeholder="e.g. BCA"
                   required
-                  className="w-full p-5 pl-7 bg-blue-50/50 border border-teal-50 rounded-2xl focus:ring-4 focus:ring-teal-400/10 focus:border-teal-400 outline-none transition-all font-semibold text-blue-900 shadow-inner placeholder:text-blue-300"
-                />
+                  className="w-full p-5 pl-7 bg-blue-50/50 border border-teal-50 rounded-2xl focus:ring-4 focus:ring-teal-400/10 focus:border-teal-400 outline-none transition-all font-semibold text-blue-950 appearance-none shadow-inner cursor-pointer"
+                >
+                  <option value="">Select Sector</option>
+                  {[
+                    'Computer Science',
+                    'BCA',
+                    'BBA',
+                    'Commerce',
+                    'Electronics',
+                    'Mechanical',
+                    'Civil',
+                    'Electrical',
+                    'Mathematics',
+                    'Physics',
+                    'Chemistry',
+                    'English',
+                  ].map((dept) => (
+                    <option key={dept} value={dept}>
+                      {dept}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className="space-y-3">
                 <label className="text-[10px] font-bold text-blue-950/20 uppercase tracking-[0.2em] ml-1">

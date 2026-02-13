@@ -21,6 +21,12 @@ export const rejectFaculty = (id) => API.post(`/admin/reject-faculty/${id}`);
 // Resources
 export const getAllSOSAlerts = () => API.get('/admin/sos');
 export const getAllEvents = () => API.get('/admin/events');
+export const getSystemStats = () => API.get('/admin/stats');
+
+// Event Management
+export const createEvent = (data) => API.post('/events', data);
+export const updateEvent = (id, data) => API.put(`/events/${id}`, data);
+export const deleteEvent = (id) => API.delete(`/events/${id}`);
 
 // Counseling & Help Requests
 export const getCounselingRequests = () => API.get('/counseling/requests');
@@ -47,12 +53,16 @@ export const adminAPI = {
   createStaff,
   getAllSOSAlerts,
   getAllEvents,
+  getSystemStats,
   getCounselingRequests,
   acceptCounselingRequest,
   rejectCounselingRequest,
   getHelpRequests,
   acceptHelpRequest,
   rejectHelpRequest,
+  createEvent,
+  updateEvent,
+  deleteEvent,
 };
 
 export default adminAPI;
