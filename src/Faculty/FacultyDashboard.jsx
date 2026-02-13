@@ -197,8 +197,7 @@ const FacultyDashboard = () => {
       await adminAPI.deleteEvent(id);
       toast.success('Event engagement terminated');
       fetchAllData();
-    } catch (_) {
-      // eslint-disable-line no-unused-vars
+    } catch {
       toast.error('Failed to terminate event engagement');
     }
   };
