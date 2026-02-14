@@ -26,6 +26,7 @@ import CounselorHome from './Counselors/CounselorHome';
 import FacultyLogin from './Faculty/FacultyLogin';
 import StaffLogin from './Non-Teaching Staff/StaffLogin';
 import StaffHomepage from './Non-Teaching Staff/StaffHomepage';
+import ProtectedRoute from './components/common/ProtectedRoute';
 
 import ToastProvider from './components/common/ToastProvider';
 import Footer from './User/components/footer';
@@ -73,8 +74,15 @@ function App() {
           <Route path="/counselor-home" element={<AdminCoreDashboard />} />
 
           {/*NON-TEACHING STAFFS*/}
-          <Route path="/non-teaching-login" element={<AdminLogin />} />
-          <Route path="/non-teaching-homepage" element={<AdminCoreDashboard />} />
+          <Route path="/non-teaching-login" element={<StaffLogin />} />
+          <Route
+            path="/non-teaching-homepage"
+            element={
+              <ProtectedRoute allowedRoles={['staff']}>
+                <StaffHomepage />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </>
     </div>

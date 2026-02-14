@@ -64,8 +64,8 @@ const ActiveStatusChecker = () => {
           // Logout and clear storage
           try {
             logout();
-          } catch (e) {
-            console.error('Logout error:', e);
+          } catch {
+            // Logout failed or already logged out - safe to ignore
           }
 
           // Only clear student auth, NOT admin auth

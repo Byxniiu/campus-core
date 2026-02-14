@@ -36,6 +36,8 @@ const AdminCoreDashboard = () => {
   const [loading, setLoading] = useState(false);
   const [showAddCounselorModal, setShowAddCounselorModal] = useState(false);
   const [showAddStaffModal, setShowAddStaffModal] = useState(false);
+  const [adminMessage, setAdminMessage] = useState('');
+  const [adminContact, setAdminContact] = useState('');
 
   // --- CENTRAL STATE ---
   const [data, setData] = useState({
@@ -112,8 +114,10 @@ const AdminCoreDashboard = () => {
         setData((prev) => ({ ...prev, [page]: fetchedData }));
       }
     } catch (error) {
-      console.error(`Error fetching ${page}:`, error);
-      toast.error(`Failed to fetch ${page}`);
+      console.error(`[CRITICAL] Error fetching ${page}:`, error);
+      const detail = error.data?.message || error.message || 'Unknown Error';
+      console.error(`[DETAIL] ${detail}`);
+      toast.error(`Failed to fetch ${page}: ${detail}`);
     } finally {
       setLoading(false);
     }
@@ -198,14 +202,21 @@ const AdminCoreDashboard = () => {
   const handleHelpAction = async (id, action) => {
     try {
       let response;
+      const extraData = {
+        staffMessage: adminMessage,
+        staffContact: adminContact,
+      };
+
       if (action === 'accept') {
-        response = await acceptHelpRequest(id);
+        response = await acceptHelpRequest(id, extraData);
       } else {
-        response = await rejectHelpRequest(id);
+        response = await rejectHelpRequest(id, extraData);
       }
 
       if (response.success) {
         toast.success(`Help request ${action === 'accept' ? 'accepted' : 'rejected'}`);
+        setAdminMessage('');
+        setAdminContact('');
         fetchData('help_requests');
       }
     } catch (error) {
@@ -890,9 +901,9 @@ const AdminCoreDashboard = () => {
                     </div>
                     <span
                       className={`px-2 py-1 rounded text-[8px] font-black uppercase ${
-                        req.priority === 'high'
+                        req.priority === 'High' || req.priority === 'high'
                           ? 'bg-red-600 text-white'
-                          : req.priority === 'medium'
+                          : req.priority === 'Medium' || req.priority === 'medium'
                             ? 'bg-yellow-600 text-white'
                             : 'bg-blue-500 text-white'
                       }`}
@@ -936,7 +947,7 @@ const AdminCoreDashboard = () => {
                       </p>
                     </div>
                     <div className="flex gap-2">
-                      {req.status === 'pending' && (
+                      {(req.status === 'Pending' || req.status === 'pending') && (
                         <>
                           <button
                             onClick={() => handleHelpAction(req._id, 'accept')}
@@ -948,14 +959,16 @@ const AdminCoreDashboard = () => {
                             onClick={() => handleHelpAction(req._id, 'reject')}
                             className="px-4 py-2 bg-red-600/10 hover:bg-red-600/20 text-red-500 text-[9px] font-black uppercase rounded-xl border border-red-500/20 transition-all"
                           >
-                            Dismiss
+                            Reject
                           </button>
                         </>
                       )}
-                      {req.status !== 'pending' && (
+                      {req.status !== 'Pending' && req.status !== 'pending' && (
                         <span
                           className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase ${
-                            req.status === 'assigned' || req.status === 'completed'
+                            req.status === 'Resolved' ||
+                            req.status === 'In Progress' ||
+                            req.status === 'assigned'
                               ? 'bg-emerald-500/10 text-emerald-500'
                               : 'bg-red-500/10 text-red-500'
                           }`}
@@ -966,6 +979,27 @@ const AdminCoreDashboard = () => {
                     </div>
                   </div>
                   <p className="text-sm text-slate-600 mb-4 line-clamp-3">{req.description}</p>
+
+                  {/* Quick Response Inputs (Optional) */}
+                  {(req.status === 'Pending' || req.status === 'pending') && (
+                    <div className="mb-4 grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                      <input
+                        type="text"
+                        placeholder="Contact Number (Optional)"
+                        className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-[10px] outline-none focus:border-blue-500"
+                        value={adminContact}
+                        onChange={(e) => setAdminContact(e.target.value)}
+                      />
+                      <input
+                        type="text"
+                        placeholder="Response Message (Optional)"
+                        className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-[10px] outline-none focus:border-blue-500"
+                        value={adminMessage}
+                        onChange={(e) => setAdminMessage(e.target.value)}
+                      />
+                    </div>
+                  )}
+
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4 text-[10px] text-slate-400">
                       <span className="font-bold">
@@ -975,9 +1009,9 @@ const AdminCoreDashboard = () => {
                     </div>
                     <span
                       className={`px-2 py-1 rounded text-[8px] font-black uppercase ${
-                        req.priority === 'high'
+                        req.priority === 'High' || req.priority === 'high'
                           ? 'bg-red-600 text-white'
-                          : req.priority === 'medium'
+                          : req.priority === 'Medium' || req.priority === 'medium'
                             ? 'bg-yellow-600 text-white'
                             : 'bg-blue-500 text-white'
                       }`}

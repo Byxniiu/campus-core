@@ -11,25 +11,30 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+import { counselingAPI } from '../../../api/counseling.js';
+import toast from 'react-hot-toast';
+
 const CounselorsTab = () => {
   const [selectedItem, setSelectedItem] = useState(null);
+  const [counselors, setCounselors] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const counselors = [
-    {
-      id: 1,
-      name: 'Dr. Sarah Smith',
-      specialty: 'Mental Health',
-      bio: '15 years experience in student psychology. Specialist in anxiety and stress management within high-pressure academic nodes.',
-      availability: 'Mon-Fri, 9AM-4PM',
-    },
-    {
-      id: 2,
-      name: 'Mr. David Chen',
-      specialty: 'Academic Stress',
-      bio: 'Expert in time management, exam anxiety, and professional guidance across the global research matrix.',
-      availability: 'Tue-Thu, 10AM-6PM',
-    },
-  ];
+  React.useEffect(() => {
+    fetchCounselors();
+  }, []);
+
+  const fetchCounselors = async () => {
+    try {
+      setLoading(true);
+      const data = await counselingAPI.getCounselors();
+      setCounselors(data.counselors || []);
+    } catch (error) {
+      console.error('Failed to fetch counselors:', error);
+      toast.error('Failed to load counselors');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -43,6 +48,14 @@ const CounselorsTab = () => {
     hidden: { y: 20, opacity: 0 },
     visible: { y: 0, opacity: 1 },
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-500"></div>
+      </div>
+    );
+  }
 
   if (selectedItem) {
     return (
@@ -82,14 +95,14 @@ const CounselorsTab = () => {
             className="text-center md:text-left"
           >
             <h2 className="text-5xl font-outfit font-bold text-blue-950 leading-tight tracking-tight mb-5">
-              {selectedItem.name}
+              {selectedItem.firstName} {selectedItem.lastName}
             </h2>
             <div className="flex items-center justify-center md:justify-start gap-4">
               <span className="bg-blue-950 text-teal-400 px-6 py-2.5 rounded-full text-[9px] font-bold uppercase tracking-[0.2em] shadow-lg shadow-teal-100/50">
                 Licensed Unit
               </span>
               <span className="bg-teal-50 text-teal-600 px-5 py-2.5 rounded-full text-[9px] font-bold uppercase tracking-[0.2em] border border-teal-100">
-                {selectedItem.specialty}
+                {selectedItem.specialization}
               </span>
             </div>
           </motion.div>
@@ -174,7 +187,7 @@ const CounselorsTab = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
         {counselors.map((c) => (
           <motion.div
-            key={c.id}
+            key={c._id}
             variants={itemVariants}
             whileHover={{ y: -10 }}
             onClick={() => setSelectedItem(c)}
@@ -190,12 +203,12 @@ const CounselorsTab = () => {
               </motion.div>
               <div>
                 <h3 className="text-3xl font-outfit font-bold text-blue-950 group-hover:text-teal-600 transition tracking-tight mb-2 uppercase">
-                  {c.name}
+                  {c.firstName} {c.lastName}
                 </h3>
                 <div className="flex items-center justify-center md:justify-start gap-3">
                   <Radio size={14} className="text-teal-500" />
                   <p className="text-blue-950/30 text-[10px] font-bold uppercase tracking-[0.2em]">
-                    {c.specialty}
+                    {c.specialization}
                   </p>
                 </div>
               </div>

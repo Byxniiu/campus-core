@@ -33,9 +33,13 @@ export const getCounselingRequests = () => API.get('/counseling/requests');
 export const acceptCounselingRequest = (id) => API.patch(`/counseling/requests/${id}/accept`);
 export const rejectCounselingRequest = (id) => API.patch(`/counseling/requests/${id}/reject`);
 
-export const getHelpRequests = () => API.get('/emergency-assist');
-export const acceptHelpRequest = (id) => API.put(`/emergency-assist/${id}/assign`);
-export const rejectHelpRequest = (id) => API.put(`/emergency-assist/${id}/reject`);
+export const getHelpRequests = () => API.get('/admin/help-requests');
+export const updateHelpRequestStatus = (id, status, extraData = {}) =>
+  API.patch(`/admin/help-requests/${id}/status`, { status, ...extraData });
+export const acceptHelpRequest = (id, extraData = {}) =>
+  updateHelpRequestStatus(id, 'In Progress', extraData);
+export const rejectHelpRequest = (id, extraData = {}) =>
+  updateHelpRequestStatus(id, 'Rejected', extraData);
 
 // Export as default object for convenience
 export const adminAPI = {
@@ -58,6 +62,7 @@ export const adminAPI = {
   acceptCounselingRequest,
   rejectCounselingRequest,
   getHelpRequests,
+  updateHelpRequestStatus,
   acceptHelpRequest,
   rejectHelpRequest,
   createEvent,

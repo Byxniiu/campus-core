@@ -12,6 +12,7 @@ client.interceptors.request.use(
     // Intelligent Token Selection Logic
     const isAdminRoute = config.url.includes('/admin/');
     const isFacultyPage = window.location.pathname.includes('/faculty');
+    const isStaffPage = window.location.pathname.includes('/non-teaching');
     const isStudentPage =
       window.location.pathname.includes('/student-') || window.location.pathname === '/';
 
@@ -19,48 +20,86 @@ client.interceptors.request.use(
       ` API Request: ${config.url} | Context: ${isFacultyPage ? 'Faculty' : isStudentPage ? 'Student' : 'General'}`
     );
 
-    // Determine the best token to use
+    // Intelligent Context-Aware Token Selection
     let token = null;
+    let tokenSource = 'none';
 
-    // 1. Try Faculty Token if on faculty page or calling faculty-specific routes
-    if (isFacultyPage) {
-      token = localStorage.getItem('faculty_token');
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-        console.log(' Using Faculty Token');
-        return config;
-      }
-    }
-
-    // 2. Try Admin Token if it's an admin route
     if (isAdminRoute) {
       const adminAuth = localStorage.getItem('admin-auth');
       if (adminAuth) {
         try {
           const parsed = JSON.parse(adminAuth);
-          token = parsed.state?.token || parsed.token;
-          if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
-            console.log('✅ Using Admin Token');
-            return config;
-          }
-        } catch (e) {} // eslint-disable-line no-empty, no-unused-vars
+          token =
+            parsed.state?.token || parsed.token || parsed.state?.accessToken || parsed.accessToken;
+          tokenSource = 'admin-auth';
+        } catch {
+          // Token parsing failed: ignore and continue
+        }
+      }
+    } else if (isFacultyPage) {
+      token = localStorage.getItem('faculty_token');
+      tokenSource = 'faculty_token';
+    } else if (isStaffPage) {
+      const staffAuth = localStorage.getItem('auth-storage');
+      if (staffAuth) {
+        try {
+          const parsed = JSON.parse(staffAuth);
+          token =
+            parsed.state?.token || parsed.token || parsed.state?.accessToken || parsed.accessToken;
+          tokenSource = 'staff-auth';
+        } catch {
+          // Token parsing failed: ignore and continue
+        }
+      }
+    } else {
+      // Student / General page
+      const studentAuth = localStorage.getItem('student-auth');
+      if (studentAuth) {
+        try {
+          const parsed = JSON.parse(studentAuth);
+          token =
+            parsed.state?.token || parsed.token || parsed.state?.accessToken || parsed.accessToken;
+          tokenSource = 'student-auth';
+        } catch {
+          // Token parsing failed: ignore and continue
+        }
       }
     }
 
-    // 3. Fallback to Student Token (Zustand state)
-    const studentAuth =
-      localStorage.getItem('student-auth') || localStorage.getItem('auth-storage');
-    if (studentAuth) {
-      try {
-        const parsed = JSON.parse(studentAuth);
-        token = parsed.state?.token || parsed.token;
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`;
-          console.log(' Using Student Token');
-          return config;
+    // fallback - if still no token, try anything that looks like a valid auth record
+    if (!token) {
+      const keys = ['admin-auth', 'student-auth', 'auth-storage', 'faculty_token'];
+      for (const key of keys) {
+        const val = localStorage.getItem(key);
+        if (val) {
+          if (key === 'faculty_token') {
+            token = val;
+            tokenSource = 'fallback:faculty';
+          } else {
+            try {
+              const parsed = JSON.parse(val);
+              token =
+                parsed.state?.token ||
+                parsed.token ||
+                parsed.state?.accessToken ||
+                parsed.accessToken;
+              tokenSource = `fallback:${key}`;
+            } catch {
+              // Token parsing failed: ignore and continue
+            }
+          }
+          if (token) break;
         }
-      } catch (e) {} // eslint-disable-line no-empty, no-unused-vars
+      }
+    }
+
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+      console.log(
+        `[API_SEC] Attaching ${tokenSource} token (${token.substring(0, 10)}...) to ${config.url}`
+      );
+    } else {
+      console.warn(`[API_SEC] No token available for request: ${config.url}`);
     }
 
     return config;
@@ -85,8 +124,7 @@ client.interceptors.response.use(
     ) {
       // Only clear student auth (admin might be the one blocking, so preserve their auth)
       localStorage.removeItem('student-auth');
-      localStorage.removeItem('auth-storage'); // legacy
-
+      localStorage.removeItem('auth-storage'); // legacy fallback
       // Also clear faculty storage if it exists
       localStorage.removeItem('faculty_token');
       localStorage.removeItem('faculty_refresh_token');

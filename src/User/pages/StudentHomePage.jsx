@@ -13,6 +13,7 @@ import {
   Waves,
   Radio,
   Anchor,
+  FileText,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStudentAuthStore } from '../../stores/useStudentAuthStore';
@@ -25,6 +26,8 @@ import GroupsTab from './Dashboard/GroupsTab';
 import EventsTab from './Dashboard/EventsTab';
 import CounselorsTab from './Dashboard/CounselorsTab';
 import StaffTab from './Dashboard/StaffTab';
+import ProfileTab from './Dashboard/ProfileTab';
+import MyRequestsTab from './Dashboard/MyRequestsTab';
 
 const StudentHomePage = () => {
   const navigate = useNavigate();
@@ -51,6 +54,8 @@ const StudentHomePage = () => {
     { id: 'Upcoming Events', icon: <Calendar size={20} /> },
     { id: 'Counseling', icon: <Users size={20} /> },
     { id: 'Campus Staff', icon: <UserCircle size={20} /> },
+    { id: 'My Requests', icon: <FileText size={20} /> },
+    { id: 'My Profile', icon: <UserCircle size={20} /> },
   ];
 
   const renderActiveTab = () => {
@@ -65,6 +70,10 @@ const StudentHomePage = () => {
         return <CounselorsTab />;
       case 'Campus Staff':
         return <StaffTab />;
+      case 'My Profile':
+        return <ProfileTab />;
+      case 'My Requests':
+        return <MyRequestsTab />;
       default:
         return <SOSTab />;
     }
@@ -135,7 +144,10 @@ const StudentHomePage = () => {
           <div className="h-8 w-[1px] bg-slate-200 hidden sm:block"></div>
 
           {/* User Profile */}
-          <div className="flex items-center gap-3 group cursor-pointer">
+          <div
+            className="flex items-center gap-3 group cursor-pointer"
+            onClick={() => setActiveTab('My Profile')}
+          >
             <div className="text-right hidden md:block">
               <p className="text-xs font-black text-blue-950 uppercase tracking-tight leading-tight">
                 {user?.firstName} {user?.lastName}
@@ -144,9 +156,17 @@ const StudentHomePage = () => {
                 {user?.studentId || 'ID Pending'}
               </p>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-teal-400 to-teal-500 p-[2px] shadow-lg shadow-teal-500/20 group-hover:shadow-teal-500/40 transition-shadow">
-              <div className="w-full h-full bg-white rounded-[10px] flex items-center justify-center text-teal-600 font-black text-lg">
-                {user?.firstName?.[0]}
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-teal-400 to-teal-500 p-[2px] shadow-lg shadow-teal-500/20 group-hover:shadow-teal-500/40 transition-all">
+              <div className="w-full h-full bg-white rounded-[10px] flex items-center justify-center text-teal-600 font-black text-lg overflow-hidden">
+                {user?.avatar ? (
+                  <img
+                    src={`http://localhost:3000${user.avatar}`}
+                    alt="Avatar"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  user?.firstName?.[0]
+                )}
               </div>
             </div>
           </div>
