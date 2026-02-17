@@ -9,7 +9,6 @@ const AddCounselorModal = ({ isOpen, onClose, onSuccess }) => {
     lastName: '',
     email: '',
     password: '',
-    specialization: 'Academic Issues',
     phone: '',
     experience: '',
     qualification: '',
@@ -139,37 +138,18 @@ const AddCounselorModal = ({ isOpen, onClose, onSuccess }) => {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">
-                Specialization
-              </label>
-              <select
-                name="specialization"
-                value={formData.specialization}
-                onChange={handleChange}
-                className="w-full bg-white border border-slate-200 rounded-2xl px-5 py-3.5 text-sm text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all font-bold appearance-none"
-              >
-                <option value="Academic Issues">Academic Issues</option>
-                <option value="Career Guidance">Career Guidance</option>
-                <option value="Mental Health">Mental Health</option>
-                <option value="Placement Support">Placement Support</option>
-                <option value="Personal Issues">Personal Issues</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">
-                Phone Number
-              </label>
-              <input
-                required
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-                placeholder="+1 234 567 890"
-                className="w-full bg-white border border-slate-200 rounded-2xl px-5 py-3.5 text-sm text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all font-bold"
-              />
-            </div>
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">
+              Phone Number
+            </label>
+            <input
+              required
+              name="phone"
+              value={formData.phone}
+              onChange={handleChange}
+              placeholder="+1 234 567 890"
+              className="w-full bg-white border border-slate-200 rounded-2xl px-5 py-3.5 text-sm text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all font-bold"
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-6">

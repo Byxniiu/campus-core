@@ -25,12 +25,12 @@ export const useSocketStore = create((set, get) => ({
 
     // Connection event handlers
     socket.on('connect', () => {
-      console.log('✅ Socket connected:', socket.id);
+      console.log(' Socket connected:', socket.id);
       set({ isConnected: true });
     });
 
     socket.on('disconnect', () => {
-      console.log('❌ Socket disconnected');
+      console.log(' Socket disconnected');
       set({ isConnected: false });
     });
 

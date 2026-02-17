@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { helpRequestAPI } from '../../../api/helpRequest';
 import {
   Loader,
@@ -11,36 +11,58 @@ import {
   ChevronRight,
   Info,
   Calendar,
+  MapPin,
+  Shield,
+  MessageCircle,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
+import { counselingAPI } from '../../../api/counseling';
 
 const MyRequestsTab = () => {
-  const [requests, setRequests] = useState([]);
+  const [activeSubTab, setActiveSubTab] = useState('Administrative');
+  const [helpRequests, setHelpRequests] = useState([]);
+  const [counselingRequests, setCounselingRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedRequest, setSelectedRequest] = useState(null);
 
-  useEffect(() => {
-    fetchRequests();
-  }, []);
-
-  const fetchRequests = async () => {
+  const fetchRequests = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await helpRequestAPI.getMyRequests();
-      if (res.success) {
-        setRequests(res.data);
+      console.log('[TAB] Fetching requests for:', activeSubTab);
+
+      if (activeSubTab === 'Administrative') {
+        const res = await helpRequestAPI.getMyRequests();
+        console.log('[TAB] Help requests response:', res);
+        if (res.success) {
+          setHelpRequests(res.data.requests || []);
+        } else {
+          toast.error('Failed to load help requests');
+        }
+      } else {
+        const res = await counselingAPI.getMyRequests();
+        console.log('[TAB] Counseling requests response:', res);
+        if (res.success) {
+          setCounselingRequests(res.data.requests || []);
+        } else {
+          toast.error('Failed to load counseling requests');
+        }
       }
     } catch (error) {
-      console.error('Fetch error:', error);
-      toast.error('Unable to retrieve support history');
+      console.error('[TAB] Error fetching requests:', error);
+      toast.error('Failed to load requests');
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeSubTab]);
+
+  useEffect(() => {
+    fetchRequests();
+  }, [fetchRequests]);
 
   const getStatusStyle = (status) => {
     switch (status) {
+      // Administrative statuses (capitalized)
       case 'Pending':
         return 'bg-amber-50 text-amber-600 border-amber-100';
       case 'In Progress':
@@ -49,6 +71,19 @@ const MyRequestsTab = () => {
         return 'bg-teal-50 text-teal-600 border-teal-100';
       case 'Rejected':
         return 'bg-red-50 text-red-600 border-red-100';
+
+      // Counseling statuses (lowercase)
+      case 'pending':
+        return 'bg-amber-50 text-amber-600 border-amber-100';
+      case 'accepted':
+        return 'bg-blue-50 text-blue-600 border-blue-100';
+      case 'in-session':
+        return 'bg-indigo-50 text-indigo-600 border-indigo-100';
+      case 'completed':
+        return 'bg-teal-50 text-teal-600 border-teal-100';
+      case 'declined':
+        return 'bg-red-50 text-red-600 border-red-100';
+
       default:
         return 'bg-slate-50 text-slate-500 border-slate-100';
     }
@@ -56,6 +91,7 @@ const MyRequestsTab = () => {
 
   const getStatusIcon = (status) => {
     switch (status) {
+      // Administrative statuses
       case 'Pending':
         return <Clock size={12} />;
       case 'In Progress':
@@ -64,6 +100,19 @@ const MyRequestsTab = () => {
         return <CheckCircle size={12} />;
       case 'Rejected':
         return <AlertTriangle size={12} />;
+
+      // Counseling statuses
+      case 'pending':
+        return <Clock size={12} />;
+      case 'accepted':
+        return <CheckCircle size={12} />;
+      case 'in-session':
+        return <MessageCircle size={12} />;
+      case 'completed':
+        return <CheckCircle size={12} />;
+      case 'declined':
+        return <AlertTriangle size={12} />;
+
       default:
         return null;
     }
@@ -84,15 +133,24 @@ const MyRequestsTab = () => {
     <div className="space-y-6">
       <div className="bg-white rounded-[2rem] border border-teal-50 p-8 shadow-sm">
         <div className="flex justify-between items-center mb-8">
-          <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-3">
-            <FileText size={18} className="text-teal-500" /> Administrative Requests History
-          </h3>
+          <div className="flex bg-slate-100 p-1 rounded-2xl">
+            {['Administrative', 'Counseling'].map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveSubTab(tab)}
+                className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeSubTab === tab ? 'bg-white text-blue-950 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
           <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-4 py-1.5 rounded-full">
-            Total Actions: {requests.length}
+            Total Actions:{' '}
+            {activeSubTab === 'Administrative' ? helpRequests.length : counselingRequests.length}
           </span>
         </div>
 
-        {requests.length === 0 ? (
+        {(activeSubTab === 'Administrative' ? helpRequests : counselingRequests).length === 0 ? (
           <div className="py-20 text-center opacity-30">
             <Info size={48} className="mx-auto mb-4 text-slate-300" />
             <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">
@@ -101,7 +159,7 @@ const MyRequestsTab = () => {
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4">
-            {requests.map((req) => (
+            {(activeSubTab === 'Administrative' ? helpRequests : counselingRequests).map((req) => (
               <motion.div
                 key={req._id}
                 whileHover={{ scale: 1.01 }}
@@ -125,10 +183,23 @@ const MyRequestsTab = () => {
                     </div>
                     <div className="flex items-center gap-4 text-[10px] text-slate-400 font-bold uppercase tracking-tight">
                       <span className="flex items-center gap-1.5">
-                        <User size={12} /> {req.staff?.firstName} {req.staff?.lastName}
+                        <User size={12} />{' '}
+                        {req.staff
+                          ? `${req.staff.firstName} ${req.staff.lastName}`
+                          : req.counselor
+                            ? `${req.counselor.firstName} ${req.counselor.lastName}`
+                            : 'Awaiting Assignment'}
                       </span>
                       <span>•</span>
                       <span>{new Date(req.createdAt).toLocaleDateString()}</span>
+                      {activeSubTab === 'Counseling' && req.preferredSlot && (
+                        <>
+                          <span>•</span>
+                          <span className="flex items-center gap-1.5 text-teal-600">
+                            <Clock size={12} /> {req.preferredSlot}
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -178,6 +249,11 @@ const MyRequestsTab = () => {
                 <h3 className="text-3xl font-black text-blue-950 uppercase tracking-tighter">
                   {selectedRequest.title}
                 </h3>
+                {activeSubTab === 'Counseling' && (
+                  <p className="text-teal-600 text-[10px] font-black uppercase tracking-widest mt-2 flex items-center gap-2">
+                    <Shield size={12} /> Counseling Protocol Operational
+                  </p>
+                )}
               </div>
 
               <div className="p-10 space-y-8 overflow-y-auto max-h-[60vh]">
@@ -188,10 +264,14 @@ const MyRequestsTab = () => {
                     </div>
                     <div>
                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                        Assigned Official
+                        {activeSubTab === 'Administrative'
+                          ? 'Assigned Official'
+                          : 'Assigned Counselor'}
                       </p>
                       <p className="text-sm font-bold text-blue-950 uppercase tracking-tighter">
-                        {selectedRequest.staff?.firstName} {selectedRequest.staff?.lastName}
+                        {activeSubTab === 'Administrative'
+                          ? `${selectedRequest.staff?.firstName || 'Pending'} ${selectedRequest.staff?.lastName || ''}`
+                          : `${selectedRequest.counselor?.firstName || 'Pending'} ${selectedRequest.counselor?.lastName || ''}`}
                       </p>
                     </div>
                   </div>
@@ -201,9 +281,10 @@ const MyRequestsTab = () => {
                     </p>
                     <p
                       className={`text-sm font-black uppercase tracking-tight ${
-                        selectedRequest.priority === 'High'
+                        selectedRequest.priority?.toLowerCase() === 'high' ||
+                        selectedRequest.priority?.toLowerCase() === 'urgent'
                           ? 'text-red-500'
-                          : selectedRequest.priority === 'Medium'
+                          : selectedRequest.priority?.toLowerCase() === 'medium'
                             ? 'text-amber-500'
                             : 'text-teal-500'
                       }`}
@@ -213,15 +294,47 @@ const MyRequestsTab = () => {
                   </div>
                 </div>
 
-                {selectedRequest.preferredDate && (
+                {(selectedRequest.preferredDate || selectedRequest.assignedSlot) && (
                   <div className="flex items-center gap-4 bg-blue-50/50 p-6 rounded-2xl border border-blue-100">
                     <Calendar size={18} className="text-blue-500" />
                     <div className="flex justify-between items-center w-full">
                       <p className="text-[10px] font-black text-blue-950/40 uppercase tracking-widest">
-                        Preferred Resolution Cycle
+                        {selectedRequest.assignedSlot
+                          ? 'Dispatched Appointment'
+                          : 'Requested Target Date'}
+                      </p>
+                      <p className="text-xs font-black text-blue-950 uppercase tracking-tight text-right">
+                        {selectedRequest.assignedSlot
+                          ? new Date(selectedRequest.assignedSlot).toLocaleString()
+                          : new Date(selectedRequest.preferredDate).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {selectedRequest.preferredSlot && (
+                  <div className="flex items-center gap-4 bg-indigo-50/30 p-6 rounded-2xl border border-indigo-100">
+                    <Clock size={18} className="text-indigo-500" />
+                    <div className="flex justify-between items-center w-full">
+                      <p className="text-[10px] font-black text-indigo-500/40 uppercase tracking-widest">
+                        Preferred Window / Time
                       </p>
                       <p className="text-xs font-black text-blue-950 uppercase tracking-tight">
-                        {new Date(selectedRequest.preferredDate).toLocaleDateString()}
+                        {selectedRequest.preferredSlot}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {selectedRequest.location && (
+                  <div className="flex items-center gap-4 bg-teal-50/30 p-6 rounded-2xl border border-teal-100">
+                    <MapPin size={18} className="text-teal-500" />
+                    <div className="flex justify-between items-center w-full">
+                      <p className="text-[10px] font-black text-teal-600/40 uppercase tracking-widest">
+                        Physical Venue / Room
+                      </p>
+                      <p className="text-xs font-black text-blue-950 uppercase tracking-tight">
+                        {selectedRequest.location}
                       </p>
                     </div>
                   </div>
@@ -263,19 +376,33 @@ const MyRequestsTab = () => {
                   </div>
                 )}
 
-                {(selectedRequest.staffMessage || selectedRequest.staffContact) && (
+                {(selectedRequest.staffMessage ||
+                  selectedRequest.staffContact ||
+                  selectedRequest.counselorResponse) && (
                   <div className="p-8 bg-teal-50/50 rounded-[2rem] border border-teal-100 space-y-4">
+                    {console.log('[STUDENT VIEW] selectedRequest:', selectedRequest)}
+                    {console.log(
+                      '[STUDENT VIEW] counselorResponse:',
+                      selectedRequest.counselorResponse
+                    )}
+                    {console.log('[STUDENT VIEW] staffMessage:', selectedRequest.staffMessage)}
                     <div className="flex items-center gap-3">
                       <CheckCircle size={18} className="text-teal-500" />
                       <p className="text-[10px] font-black text-teal-600 uppercase tracking-widest">
-                        Official Support Feedback
+                        {activeSubTab === 'Administrative'
+                          ? 'Official Support Feedback'
+                          : 'Professional Consultation Notes'}
                       </p>
                     </div>
 
-                    {selectedRequest.staffMessage && (
-                      <p className="text-blue-950 text-sm font-bold leading-relaxed italic">
-                        "{selectedRequest.staffMessage}"
-                      </p>
+                    {(selectedRequest.staffMessage || selectedRequest.counselorResponse) && (
+                      <div className="space-y-4">
+                        <div className="bg-white/60 p-6 rounded-2xl border border-teal-100 shadow-inner">
+                          <p className="text-blue-950 text-sm font-medium leading-relaxed whitespace-pre-line">
+                            {selectedRequest.staffMessage || selectedRequest.counselorResponse}
+                          </p>
+                        </div>
+                      </div>
                     )}
 
                     {selectedRequest.staffContact && (

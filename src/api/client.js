@@ -9,22 +9,26 @@ const client = axios.create({
 // Request interceptor - attach token
 client.interceptors.request.use(
   (config) => {
-    // Intelligent Token Selection Logic
-    const isAdminRoute = config.url.includes('/admin/');
-    const isFacultyPage = window.location.pathname.includes('/faculty');
-    const isStaffPage = window.location.pathname.includes('/non-teaching');
-    const isStudentPage =
-      window.location.pathname.includes('/student-') || window.location.pathname === '/';
+    // Intelligent Context-Aware Page Detection
+    const path = window.location.pathname;
+    const isPageAdmin = path.includes('/admin-');
+    const isPageCounselor = path.includes('/counselor') || path.includes('/counseling-stats');
+    const isPageFaculty = path.includes('/faculty');
+    const isPageStaff = path.includes('/non-teaching');
+
+    // API Route Detection
+    const isApiAdmin = config.url.includes('/admin/');
 
     console.log(
-      ` API Request: ${config.url} | Context: ${isFacultyPage ? 'Faculty' : isStudentPage ? 'Student' : 'General'}`
+      `[API_CONTEXT] Req: ${config.url} | Page: ${path} | Mode: ${isPageAdmin ? 'Admin' : isPageCounselor ? 'Counselor' : isPageFaculty ? 'Faculty' : isPageStaff ? 'Staff' : 'Standard'}`
     );
 
     // Intelligent Context-Aware Token Selection
     let token = null;
     let tokenSource = 'none';
 
-    if (isAdminRoute) {
+    // 1. Priority Selection based on Page Context
+    if (isPageAdmin || isApiAdmin) {
       const adminAuth = localStorage.getItem('admin-auth');
       if (adminAuth) {
         try {
@@ -33,13 +37,13 @@ client.interceptors.request.use(
             parsed.state?.token || parsed.token || parsed.state?.accessToken || parsed.accessToken;
           tokenSource = 'admin-auth';
         } catch {
-          // Token parsing failed: ignore and continue
+          // Ignore parse errors
         }
       }
-    } else if (isFacultyPage) {
-      token = localStorage.getItem('faculty_token');
-      tokenSource = 'faculty_token';
-    } else if (isStaffPage) {
+    }
+
+    // 2. Counselor / Staff Priority (Common UI)
+    if (!token && (isPageCounselor || isPageStaff)) {
       const staffAuth = localStorage.getItem('auth-storage');
       if (staffAuth) {
         try {
@@ -48,11 +52,26 @@ client.interceptors.request.use(
             parsed.state?.token || parsed.token || parsed.state?.accessToken || parsed.accessToken;
           tokenSource = 'staff-auth';
         } catch {
-          // Token parsing failed: ignore and continue
+          // Ignore parse errors
         }
       }
-    } else {
-      // Student / General page
+    }
+
+    // 3. Faculty Priority
+    if (!token && isPageFaculty) {
+      token = localStorage.getItem('faculty_token');
+      tokenSource = 'faculty_token';
+    }
+
+    // 4. Student Fallback (ONLY if not in a privileged page)
+    if (
+      !token &&
+      !isPageAdmin &&
+      !isPageCounselor &&
+      !isPageStaff &&
+      !isPageFaculty &&
+      !isApiAdmin
+    ) {
       const studentAuth = localStorage.getItem('student-auth');
       if (studentAuth) {
         try {
@@ -61,20 +80,24 @@ client.interceptors.request.use(
             parsed.state?.token || parsed.token || parsed.state?.accessToken || parsed.accessToken;
           tokenSource = 'student-auth';
         } catch {
-          // Token parsing failed: ignore and continue
+          // Ignore parse errors
         }
       }
     }
 
-    // fallback - if still no token, try anything that looks like a valid auth record
+    // 5. Strict Fallback - Re-scan all without page restrictions if still nothing
     if (!token) {
-      const keys = ['admin-auth', 'student-auth', 'auth-storage', 'faculty_token'];
+      const keys =
+        isPageAdmin || isPageCounselor || isPageStaff || isApiAdmin
+          ? ['admin-auth', 'auth-storage', 'faculty_token']
+          : ['student-auth', 'auth-storage', 'admin-auth'];
+
       for (const key of keys) {
         const val = localStorage.getItem(key);
         if (val) {
           if (key === 'faculty_token') {
             token = val;
-            tokenSource = 'fallback:faculty';
+            tokenSource = `fallback:${key}`;
           } else {
             try {
               const parsed = JSON.parse(val);
@@ -85,7 +108,7 @@ client.interceptors.request.use(
                 parsed.accessToken;
               tokenSource = `fallback:${key}`;
             } catch {
-              // Token parsing failed: ignore and continue
+              // Ignore parse errors
             }
           }
           if (token) break;
@@ -161,35 +184,77 @@ client.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        // Get refresh token
-        const authStorage = localStorage.getItem('auth-storage');
-        if (authStorage) {
-          const { state } = JSON.parse(authStorage);
-          const refreshToken = state?.refreshToken;
+        let refreshToken = null;
+        let storageKey = null;
+        let isZustand = false;
 
-          if (refreshToken) {
-            // Refresh access token
-            const response = await axios.post(
-              `${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/auth/refresh-token`,
-              { refreshToken }
-            );
+        // Detect which refresh token to use based on path/context
+        const path = window.location.pathname;
+        if (path.includes('/admin-')) {
+          storageKey = 'admin-auth';
+          isZustand = true;
+        } else if (path.includes('/counselor') || path.includes('/non-teaching')) {
+          storageKey = 'auth-storage';
+          isZustand = true;
+        } else if (path.includes('/faculty')) {
+          refreshToken = localStorage.getItem('faculty_refresh_token');
+          storageKey = 'faculty_token';
+          isZustand = false;
+        } else {
+          storageKey = 'student-auth';
+          isZustand = true;
+        }
 
-            const { accessToken } = response.data.data;
-
-            // Update token in storage
-            const parsedStorage = JSON.parse(authStorage);
-            parsedStorage.state.token = accessToken;
-            localStorage.setItem('auth-storage', JSON.stringify(parsedStorage));
-
-            // Retry original request with new token
-            originalRequest.headers.Authorization = `Bearer ${accessToken}`;
-            return client(originalRequest);
+        if (isZustand) {
+          const storage = localStorage.getItem(storageKey);
+          if (storage) {
+            const parsed = JSON.parse(storage);
+            refreshToken = parsed.state?.refreshToken;
           }
         }
+
+        if (refreshToken) {
+          // Refresh access token
+          const response = await axios.post(
+            `${import.meta.env.VITE_API_URL || 'http://localhost:3000/api'}/auth/refresh-token`,
+            { refreshToken }
+          );
+
+          const { accessToken } = response.data.data;
+
+          // Update token in appropriate storage
+          if (isZustand) {
+            const storage = localStorage.getItem(storageKey);
+            const parsed = JSON.parse(storage);
+            parsed.state.token = accessToken;
+            localStorage.setItem(storageKey, JSON.stringify(parsed));
+          } else if (storageKey === 'faculty_token') {
+            localStorage.setItem('faculty_token', accessToken);
+          }
+
+          // Retry original request with new token
+          originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+          return client(originalRequest);
+        }
       } catch (refreshError) {
-        // Refresh failed - logout user
-        localStorage.removeItem('auth-storage');
-        window.location.href = '/student-signin';
+        console.error('[API_REFRESH] Refresh failed:', refreshError);
+        // Refresh failed - logout user based on context
+        const path = window.location.pathname;
+        if (path.includes('/admin-')) {
+          localStorage.removeItem('admin-auth');
+          window.location.href = '/admin-login';
+        } else if (path.includes('/counselor')) {
+          localStorage.removeItem('auth-storage');
+          window.location.href = '/counselor-login';
+        } else if (path.includes('/faculty')) {
+          localStorage.removeItem('faculty_token');
+          localStorage.removeItem('faculty_refresh_token');
+          window.location.href = '/faculty-login';
+        } else {
+          localStorage.removeItem('student-auth');
+          localStorage.removeItem('auth-storage');
+          window.location.href = '/student-signin';
+        }
         return Promise.reject(refreshError);
       }
     }

@@ -21,7 +21,7 @@ export const useAdminAuthStore = create(
         }),
 
       login: (userData, accessToken, refreshToken) => {
-        console.log('🏪 AdminAuthStore.login() called with:', {
+        console.log(' AdminAuthStore.login() called with:', {
           user: userData,
           hasAccessToken: !!accessToken,
           hasRefreshToken: !!refreshToken,
@@ -34,7 +34,7 @@ export const useAdminAuthStore = create(
           isAuthenticated: true,
         });
 
-        console.log('✅ AdminAuthStore.login() state updated');
+        console.log(' AdminAuthStore.login() state updated');
       },
 
       logout: () => {

@@ -70,8 +70,8 @@ function App() {
           <Route path="/faculty-dashboard" element={<FacultyDashboard />} />
 
           {/*Counselor*/}
-          <Route path="/counselor-login" element={<AdminLogin />} />
-          <Route path="/counselor-home" element={<AdminCoreDashboard />} />
+          <Route path="/counselor-login" element={<CounselorLogin />} />
+          <Route path="/counselor-home" element={<CounselorHome />} />
 
           {/*NON-TEACHING STAFFS*/}
           <Route path="/non-teaching-login" element={<StaffLogin />} />

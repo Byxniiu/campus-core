@@ -9,7 +9,6 @@ import {
   toggleUserStatus,
   getAllSOSAlerts,
   getCounselingRequests,
-  acceptCounselingRequest,
   rejectCounselingRequest,
   getHelpRequests,
   acceptHelpRequest,
@@ -21,6 +20,9 @@ import toast from 'react-hot-toast';
 import PendingFacultyApprovals from './PendingFacultyApprovals';
 import AddCounselorModal from './AddCounselorModal';
 import AddStaffModal from './AddStaffModal';
+import AcceptanceModal from '../Counselors/AcceptanceModal';
+import { counselingAPI } from '../api/counseling';
+import { Calendar, Clock } from 'lucide-react';
 
 const AdminCoreDashboard = () => {
   const navigate = useNavigate();
@@ -36,8 +38,16 @@ const AdminCoreDashboard = () => {
   const [loading, setLoading] = useState(false);
   const [showAddCounselorModal, setShowAddCounselorModal] = useState(false);
   const [showAddStaffModal, setShowAddStaffModal] = useState(false);
+  const [showAcceptanceModal, setShowAcceptanceModal] = useState(false);
   const [adminMessage, setAdminMessage] = useState('');
   const [adminContact, setAdminContact] = useState('');
+  const [selectedCounselingRequest, setSelectedCounselingRequest] = useState(null);
+  const [acceptanceForm, setAcceptanceForm] = useState({
+    assignedSlot: '',
+    location: '',
+    meetingLink: '',
+    counselorResponse: '',
+  });
 
   // --- CENTRAL STATE ---
   const [data, setData] = useState({
@@ -182,21 +192,89 @@ const AdminCoreDashboard = () => {
   };
 
   const handleCounselingAction = async (id, action) => {
-    try {
-      let response;
-      if (action === 'accept') {
-        response = await acceptCounselingRequest(id);
-      } else {
-        response = await rejectCounselingRequest(id);
+    if (action === 'accept') {
+      // Open the acceptance modal instead of directly accepting
+      const request = data.counseling_requests.find((r) => r._id === id);
+      setSelectedCounselingRequest(request);
+      setShowAcceptanceModal(true);
+    } else {
+      // Reject directly
+      try {
+        const response = await rejectCounselingRequest(id);
+        if (response.success) {
+          toast.success('Request rejected');
+          fetchData('counseling_requests');
+        }
+      } catch (error) {
+        toast.error(error.message || 'Failed to reject request');
       }
+    }
+  };
 
-      if (response.success) {
-        toast.success(`Request ${action === 'accept' ? 'accepted' : 'rejected'}`);
+  const handleSubmitAcceptance = async (e) => {
+    e.preventDefault();
+
+    if (!acceptanceForm.assignedSlot) {
+      toast.error('Please select an appointment date and time');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await counselingAPI.manageRequest(selectedCounselingRequest._id, {
+        status: 'accepted',
+        assignedSlot: acceptanceForm.assignedSlot,
+        location: acceptanceForm.location,
+        meetingLink: acceptanceForm.meetingLink,
+        counselorResponse: acceptanceForm.counselorResponse,
+      });
+
+      if (res.success) {
+        toast.success('✅ Request accepted! Student has been notified with appointment details.');
+        setSelectedCounselingRequest(null);
+        setShowAcceptanceModal(false);
+        setAcceptanceForm({
+          assignedSlot: '',
+          location: '',
+          meetingLink: '',
+          counselorResponse: '',
+        });
         fetchData('counseling_requests');
       }
-    } catch (error) {
-      toast.error(error.message || `Failed to ${action} request`);
+    } catch (err) {
+      toast.error(err?.message || err || 'Failed to accept request');
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const handleAutoGenerateMessage = () => {
+    const appointmentDate = acceptanceForm.assignedSlot
+      ? new Date(acceptanceForm.assignedSlot).toLocaleDateString('en-GB', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+        })
+      : '[Date to be confirmed]';
+    const appointmentTime = acceptanceForm.assignedSlot
+      ? new Date(acceptanceForm.assignedSlot).toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true,
+        })
+      : '[Time to be confirmed]';
+    const appointmentLocation = acceptanceForm.location || 'Counseling Room – Block B, Room 203';
+
+    setAcceptanceForm({
+      ...acceptanceForm,
+      counselorResponse: `Your request has been accepted. I understand that seeking help is not always easy, and I appreciate your initiative.
+
+📅 Date: ${appointmentDate}
+🕒 Time: ${appointmentTime}
+📍 Location: ${appointmentLocation}
+
+Please bring your student ID. All discussions will remain strictly confidential. Looking forward to meeting you.`,
+    });
   };
 
   const handleHelpAction = async (id, action) => {
@@ -845,65 +923,80 @@ const AdminCoreDashboard = () => {
               data.counseling_requests.map((req) => (
                 <div
                   key={req._id}
-                  className="bg-white border border-slate-200 rounded-2xl p-6 hover:shadow-lg transition-all group"
+                  onClick={() => setSelectedCounselingRequest(req)}
+                  className="bg-white border border-slate-200 rounded-2xl p-6 hover:shadow-lg transition-all group cursor-pointer"
                 >
                   <div className="flex justify-between items-start mb-4">
                     <div>
-                      <h3 className="text-lg font-black text-blue-900 italic tracking-tighter uppercase">
+                      <h3 className="text-lg font-black text-blue-950 italic tracking-tighter uppercase line-clamp-1">
                         {req.title}
                       </h3>
-                      <p className="text-[10px] text-blue-500 font-bold uppercase tracking-widest mt-1">
-                        {req.category}
-                      </p>
+                      <div className="flex gap-3 items-center mt-1">
+                        <p className="text-[10px] text-blue-500 font-bold uppercase tracking-widest px-2 py-0.5 bg-blue-50 rounded">
+                          {req.category}
+                        </p>
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest flex items-center gap-1">
+                          📡 {req.preferredMode}
+                        </span>
+                      </div>
                     </div>
                     <div className="flex gap-2">
-                      {req.status === 'pending' && (
+                      {req.status === 'pending' && user?.role === 'counselor' && (
                         <>
                           <button
-                            onClick={() => handleCounselingAction(req._id, 'accept')}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCounselingAction(req._id, 'accept');
+                            }}
                             className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-[9px] font-black uppercase rounded-xl transition-all shadow-lg shadow-emerald-600/20"
                           >
-                            Accept
-                          </button>
-                          <button
-                            onClick={() => handleCounselingAction(req._id, 'reject')}
-                            className="px-4 py-2 bg-red-600/10 hover:bg-red-600/20 text-red-500 text-[9px] font-black uppercase rounded-xl border border-red-500/20 transition-all"
-                          >
-                            Reject
+                            Assign / Accept
                           </button>
                         </>
                       )}
-                      {req.status !== 'pending' && (
-                        <span
-                          className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase ${
-                            req.status === 'accepted'
-                              ? 'bg-emerald-500/10 text-emerald-500'
+                      <span
+                        className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase ${
+                          req.status === 'accepted' ||
+                          req.status === 'in-session' ||
+                          req.status === 'completed'
+                            ? 'bg-emerald-500/10 text-emerald-500'
+                            : req.status === 'pending'
+                              ? 'bg-amber-500/10 text-amber-500'
                               : 'bg-red-500/10 text-red-500'
-                          }`}
-                        >
-                          {req.status}
-                        </span>
-                      )}
+                        }`}
+                      >
+                        {req.status}
+                      </span>
                     </div>
                   </div>
-                  <p className="text-sm text-slate-600 mb-4 line-clamp-3">
-                    {req.isAnonymous ? '[Anonymous Content Encrypted]' : req.description}
+                  <p className="text-sm text-slate-600 mb-4 line-clamp-3 leading-relaxed">
+                    {req.description}
                   </p>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4 text-[10px] text-slate-400">
-                      <span className="font-bold">
-                        STUDENT:{' '}
+                  <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                    <div className="flex items-center gap-6 text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                      <span className="flex items-center gap-1.5">
+                        👤{' '}
                         {req.isAnonymous
                           ? 'ANONYMOUS'
                           : `${req.student?.firstName} ${req.student?.lastName}`}
                       </span>
                       <span>📅 {new Date(req.createdAt).toLocaleDateString()}</span>
+                      {req.preferredSlot && (
+                        <span className="flex items-center gap-1 text-teal-600">
+                          🕒 {req.preferredSlot}
+                        </span>
+                      )}
+                      {req.preferredCounselor && (
+                        <span className="text-indigo-500">
+                          🎯 Pref: {req.preferredCounselor?.firstName}
+                        </span>
+                      )}
                     </div>
                     <span
-                      className={`px-2 py-1 rounded text-[8px] font-black uppercase ${
-                        req.priority === 'High' || req.priority === 'high'
+                      className={`px-3 py-1 rounded text-[8px] font-black uppercase ${
+                        req.priority === 'urgent' || req.priority === 'high'
                           ? 'bg-red-600 text-white'
-                          : req.priority === 'Medium' || req.priority === 'medium'
+                          : req.priority === 'medium'
                             ? 'bg-yellow-600 text-white'
                             : 'bg-blue-500 text-white'
                       }`}
@@ -1155,6 +1248,164 @@ const AdminCoreDashboard = () => {
         </div>
       )}
 
+      {/* --- COUNSELING REQUEST DETAIL MODAL --- */}
+      {selectedCounselingRequest && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4"
+          onClick={() => setSelectedCounselingRequest(null)}
+        >
+          <div
+            className="bg-white border border-slate-200 w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden animate-in zoom-in-95 flex flex-col max-h-[90vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <div>
+                <h3 className="text-2xl font-black text-blue-950 uppercase tracking-tighter">
+                  {selectedCounselingRequest.student?.firstName}{' '}
+                  {selectedCounselingRequest.student?.lastName}
+                  {selectedCounselingRequest.isAnonymous && (
+                    <span className="ml-3 bg-blue-100 text-blue-600 text-[9px] px-2 py-1 rounded font-black italic">
+                      Identity Revealed
+                    </span>
+                  )}
+                </h3>
+                <p className="text-teal-600 text-[10px] font-black uppercase tracking-widest mt-1">
+                  Request ID: {selectedCounselingRequest._id.slice(-8)}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedCounselingRequest(null)}
+                className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 hover:bg-red-500 hover:text-white transition-all"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-10 overflow-y-auto space-y-8">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="p-5 bg-slate-50 rounded-3xl border border-slate-100">
+                  <p className="text-[9px] text-slate-400 font-black uppercase mb-1">Student ID</p>
+                  <p className="text-sm font-bold text-blue-950 uppercase">
+                    {selectedCounselingRequest.student?.studentId || 'N/A'}
+                  </p>
+                </div>
+                <div className="p-5 bg-slate-50 rounded-3xl border border-slate-100">
+                  <p className="text-[9px] text-slate-400 font-black uppercase mb-1">
+                    Department / Semester
+                  </p>
+                  <p className="text-sm font-bold text-blue-950 uppercase">
+                    {selectedCounselingRequest.student?.department || 'N/A'} (S
+                    {selectedCounselingRequest.student?.semester || '?'})
+                  </p>
+                </div>
+                <div className="p-5 bg-slate-50 rounded-3xl border border-slate-100">
+                  <p className="text-[9px] text-slate-400 font-black uppercase mb-1">
+                    Contact Secure
+                  </p>
+                  <p className="text-sm font-bold text-blue-950">
+                    {selectedCounselingRequest.student?.phone || 'No Phone'}
+                  </p>
+                </div>
+                <div className="p-5 bg-slate-50 rounded-3xl border border-slate-100">
+                  <p className="text-[9px] text-slate-400 font-black uppercase mb-1">
+                    Email Interface
+                  </p>
+                  <p className="text-sm font-bold text-blue-950 truncate">
+                    {selectedCounselingRequest.student?.email}
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <h5 className="text-[10px] font-black text-teal-600 uppercase tracking-widest mb-4">
+                  Patient Statement
+                </h5>
+                <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100 italic text-slate-600 text-sm leading-relaxed max-h-48 overflow-y-auto custom-scrollbar">
+                  "{selectedCounselingRequest.description}"
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div className="p-4 bg-blue-50/50 rounded-2xl border border-blue-100">
+                  <p className="text-[9px] text-blue-400 font-black uppercase mb-1">
+                    Preferred Mode
+                  </p>
+                  <p className="text-xs font-bold text-blue-900 uppercase">
+                    📡 {selectedCounselingRequest.preferredMode}
+                  </p>
+                </div>
+                <div className="p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100">
+                  <p className="text-[9px] text-indigo-400 font-black uppercase mb-1">
+                    Priority Level
+                  </p>
+                  <p
+                    className={`text-xs font-bold uppercase ${selectedCounselingRequest.priority?.toLowerCase() === 'urgent' ? 'text-red-500' : 'text-indigo-900'}`}
+                  >
+                    {selectedCounselingRequest.priority}
+                  </p>
+                </div>
+                <div className="p-4 bg-teal-50/50 rounded-2xl border border-teal-100">
+                  <p className="text-[9px] text-teal-400 font-black uppercase mb-1">Requested On</p>
+                  <p className="text-xs font-bold text-teal-900 uppercase">
+                    📅 {new Date(selectedCounselingRequest.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+                {selectedCounselingRequest.preferredDate && (
+                  <div className="p-4 bg-orange-50/50 rounded-2xl border border-orange-100">
+                    <p className="text-[9px] text-orange-400 font-black uppercase mb-1">
+                      Student's Target Date
+                    </p>
+                    <p className="text-xs font-bold text-orange-900 uppercase">
+                      🗓️ {new Date(selectedCounselingRequest.preferredDate).toLocaleDateString()}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {selectedCounselingRequest.preferredSlot && (
+                <div className="p-6 bg-slate-900 rounded-[2rem] border border-slate-800 flex items-center justify-between">
+                  <div>
+                    <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest mb-1">
+                      Student's Preferred Slot
+                    </p>
+                    <p className="text-sm font-bold text-white uppercase tracking-tight">
+                      {selectedCounselingRequest.preferredSlot}
+                    </p>
+                  </div>
+                  <Clock size={24} className="text-indigo-500 opacity-50" />
+                </div>
+              )}
+
+              {selectedCounselingRequest.assignedSlot && (
+                <div className="p-6 bg-teal-950/20 rounded-[2rem] border border-teal-500/30 flex items-center justify-between">
+                  <div>
+                    <p className="text-[9px] text-teal-500 font-black uppercase tracking-widest mb-1">
+                      Confirmed Appointment
+                    </p>
+                    <p className="text-sm font-bold text-teal-400 uppercase tracking-tight">
+                      {new Date(selectedCounselingRequest.assignedSlot).toLocaleString()}
+                    </p>
+                    <p className="text-[8px] text-teal-600/60 font-black uppercase tracking-widest mt-1">
+                      📍 {selectedCounselingRequest.location || 'Location Pending'}
+                    </p>
+                  </div>
+                  <Calendar size={24} className="text-teal-400" />
+                </div>
+              )}
+            </div>
+
+            <div className="p-8 bg-slate-50 border-t border-slate-100 text-center">
+              <button
+                onClick={() => setSelectedCounselingRequest(null)}
+                className="px-10 py-4 bg-blue-950 hover:bg-blue-900 text-white font-black rounded-2xl text-[10px] uppercase tracking-[0.2em] transition-all shadow-xl shadow-blue-950/20"
+              >
+                Terminate View
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* --- ADD COUNSELOR MODAL --- */}
       <AddCounselorModal
         isOpen={showAddCounselorModal}
@@ -1167,6 +1418,17 @@ const AdminCoreDashboard = () => {
         isOpen={showAddStaffModal}
         onClose={() => setShowAddStaffModal(false)}
         onSuccess={() => fetchData('staff')}
+      />
+
+      {/* Acceptance Modal */}
+      <AcceptanceModal
+        isOpen={showAcceptanceModal}
+        onClose={() => setShowAcceptanceModal(false)}
+        acceptanceForm={acceptanceForm}
+        setAcceptanceForm={setAcceptanceForm}
+        onSubmit={handleSubmitAcceptance}
+        onAutoGenerate={handleAutoGenerateMessage}
+        isUpdating={loading}
       />
     </div>
   );

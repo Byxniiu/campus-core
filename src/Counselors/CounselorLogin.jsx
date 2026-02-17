@@ -1,37 +1,36 @@
 import React, { useState } from 'react';
+import { authAPI } from '../api/auth';
+import { useAuthStore } from '../stores/useAuthStore';
+import toast from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 
-const CounselorLogin = ({ onLoginSuccess }) => {
-  const [step, setStep] = useState(1); // 1: Login, 2: OTP
-  const [email, setEmail] = useState('');
-  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+const CounselorLogin = () => {
+  const navigate = useNavigate();
+  const loginStore = useAuthStore();
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Handle OTP input jumping
-  const handleOtpChange = (element, index) => {
-    if (isNaN(element.value)) return false;
-    let newOtp = [...otp];
-    newOtp[index] = element.value;
-    setOtp(newOtp);
-
-    // Auto-focus next input
-    if (element.nextSibling && element.value !== '') {
-      element.nextSibling.focus();
-    }
-  };
-
-  const handleInitialSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (email.includes('@')) {
-      setStep(2);
-    }
-  };
+    setIsLoading(true);
+    try {
+      const res = await authAPI.login(identifier, password);
+      if (res.success) {
+        // Ensure user is actually a counselor or admin
+        if (res.data.user.role !== 'counselor' && res.data.user.role !== 'admin') {
+          toast.error('Unauthorized: This portal is for Counseling staff only.');
+          return;
+        }
 
-  const handleVerifyOtp = (e) => {
-    e.preventDefault();
-    const finalOtp = otp.join('');
-    if (finalOtp === '123456') { // Demo Bypass Code
-      onLoginSuccess();
-    } else {
-      alert("Invalid OTP. For demo use: 123456");
+        loginStore.login(res.data.user, res.data.accessToken, res.data.refreshToken);
+        toast.success(`Welcome Counselor ${res.data.user.firstName}`);
+        navigate('/counselor-home');
+      }
+    } catch (err) {
+      toast.error(err?.message || err || 'Access compilation failed');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -44,65 +43,62 @@ const CounselorLogin = ({ onLoginSuccess }) => {
 
         <div className="relative z-10">
           <header className="text-center mb-10">
-            <h1 className="text-xs font-black tracking-[0.4em] text-indigo-500 uppercase mb-2">Campus Core</h1>
-            <h2 className="text-3xl font-black text-white uppercase tracking-tighter italic">Counselor Portal</h2>
+            <h1 className="text-xs font-black tracking-[0.4em] text-indigo-500 uppercase mb-2">
+              Campus Core
+            </h1>
+            <h2 className="text-3xl font-black text-white uppercase tracking-tighter italic">
+              Counselor Portal
+            </h2>
           </header>
 
-          {step === 1 ? (
-            <form onSubmit={handleInitialSubmit} className="space-y-6 animate-in fade-in slide-in-from-bottom-4">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase text-slate-500 ml-2 tracking-widest">Identify Yourself</label>
-                <input 
-                  type="email" 
-                  required
-                  placeholder="name@campuscore.edu" 
-                  className="w-full bg-slate-800 border border-slate-700 rounded-2xl px-6 py-4 text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </div>
-              <button type="submit" className="w-full py-5 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-2xl text-xs uppercase tracking-[0.2em] shadow-xl shadow-indigo-500/20 transition-all">
-                Generate OTP
-              </button>
-            </form>
-          ) : (
-            <form onSubmit={handleVerifyOtp} className="space-y-8 animate-in zoom-in-95">
-              <div className="text-center">
-                <p className="text-sm text-slate-400 mb-2 font-medium">Verification code sent to:</p>
-                <p className="text-xs text-indigo-400 font-bold">{email}</p>
-              </div>
+          <form
+            onSubmit={handleSubmit}
+            className="space-y-6 animate-in fade-in slide-in-from-bottom-4"
+          >
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase text-slate-500 ml-2 tracking-widest">
+                Counselor ID / Email
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="CC-COUN-001"
+                className="w-full bg-slate-800 border border-slate-700 rounded-2xl px-6 py-4 text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+              />
+            </div>
 
-              <div className="flex justify-between gap-2">
-                {otp.map((data, index) => (
-                  <input
-                    key={index}
-                    type="text"
-                    maxLength="1"
-                    className="w-12 h-14 bg-slate-800 border border-slate-700 rounded-xl text-center text-xl font-black text-white focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
-                    value={data}
-                    onChange={e => handleOtpChange(e.target, index)}
-                    onFocus={e => e.target.select()}
-                  />
-                ))}
-              </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase text-slate-500 ml-2 tracking-widest">
+                Access Protocol (Password)
+              </label>
+              <input
+                type="password"
+                required
+                placeholder="••••••••"
+                className="w-full bg-slate-800 border border-slate-700 rounded-2xl px-6 py-4 text-white outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-mono"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
 
-              <div className="space-y-3">
-                <button type="submit" className="w-full py-5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl text-xs uppercase tracking-[0.2em] transition-all">
-                  Verify & Enter
-                </button>
-                <button 
-                  type="button" 
-                  onClick={() => setStep(1)} 
-                  className="w-full text-[10px] font-black uppercase text-slate-600 hover:text-slate-400 transition-all tracking-widest"
-                >
-                  Change Email Address
-                </button>
-              </div>
-            </form>
-          )}
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full py-5 bg-indigo-600 hover:bg-indigo-500 text-white font-black rounded-2xl text-xs uppercase tracking-[0.2em] shadow-xl shadow-indigo-500/20 transition-all flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50"
+            >
+              {isLoading ? (
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+              ) : null}
+              {isLoading ? 'Decrypting Access...' : 'Verify & Enter'}
+            </button>
+          </form>
 
           <footer className="mt-12 text-center">
-            <p className="text-[9px] text-slate-700 font-bold uppercase tracking-widest">Secure Faculty Access Only</p>
+            <p className="text-[9px] text-slate-700 font-bold uppercase tracking-widest">
+              Secure Faculty Access Only
+            </p>
           </footer>
         </div>
       </div>

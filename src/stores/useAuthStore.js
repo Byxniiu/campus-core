@@ -21,7 +21,7 @@ export const useAuthStore = create(
         }),
 
       login: (userData, accessToken, refreshToken) => {
-        console.log('🏪 AuthStore.login() called with:', {
+        console.log(' AuthStore.login() called with:', {
           user: userData,
           hasAccessToken: !!accessToken,
           hasRefreshToken: !!refreshToken,
@@ -34,7 +34,7 @@ export const useAuthStore = create(
           isAuthenticated: true,
         });
 
-        console.log('✅ AuthStore.login() state updated');
+        console.log(' AuthStore.login() state updated');
       },
 
       logout: () => {

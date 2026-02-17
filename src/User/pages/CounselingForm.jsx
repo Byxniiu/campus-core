@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Heart,
   Send,
@@ -11,267 +11,405 @@ import {
   Mail,
   Waves,
   Anchor,
+  Globe,
+  Users,
+  Calendar,
+  Lock,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { useAuthStore } from '../../stores/useAuthStore';
+import { counselingAPI } from '../../api/counseling';
 
-const CounselingForm = () => {
+const CounselingForm = ({ preSelectedCounselorId, initialAvailability, onCancel, onSuccess }) => {
+  const { user } = useAuthStore();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [counselors, setCounselors] = useState([]);
+  const [availabilityDetail, setAvailabilityDetail] = useState(null);
+  const [isFetchingAvailability, setIsFetchingAvailability] = useState(false);
+
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    serviceType: 'Individual Counseling',
-    urgency: 'Standard',
-    message: '',
+    firstName: user?.firstName || '',
+    lastName: user?.lastName || '',
+    email: user?.email || '',
+    phone: user?.phone || '',
+    category: 'mental-health',
+    priority: 'medium',
+    description: '',
+    preferredMode: 'either',
+    preferredCounselor: preSelectedCounselorId || location.state?.preferredCounselor || '',
+    hadPreviousCounseling: false,
+    preferredSlot: '',
+    preferredDate: '',
+    isAnonymous: false,
+    title: '',
   });
 
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  useEffect(() => {
+    const fetchCounselors = async () => {
+      try {
+        const res = await counselingAPI.getCounselors();
+        if (res.success) {
+          setCounselors(res.data.counselors);
+        }
+      } catch (err) {
+        console.error('Failed to fetch counselors:', err);
+      }
+    };
+    fetchCounselors();
+  }, []);
+
+  // Fetch specific availability slots/detail when counselor changes
+  useEffect(() => {
+    const fetchAvailability = async () => {
+      if (!formData.preferredCounselor) {
+        setAvailabilityDetail(null);
+        return;
+      }
+
+      setIsFetchingAvailability(true);
+      try {
+        const res = await counselingAPI.getCounselorAvailability(formData.preferredCounselor);
+        if (res.success) {
+          setAvailabilityDetail(res.data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch counselor availability:', err);
+      } finally {
+        setIsFetchingAvailability(false);
+      }
+    };
+
+    fetchAvailability();
+
+    // Update mode when counselor selection changes
+    if (!formData.preferredCounselor) {
+      setFormData((prev) => ({ ...prev, preferredMode: 'in-person' }));
+    }
+  }, [formData.preferredCounselor]);
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Simulate API submission
-    setTimeout(() => {
-      console.log('Counseling Request Submitted:', formData);
+    try {
+      const submitData = {
+        ...formData,
+        title: formData.title || `${formData.category.replace('-', ' ')} request`,
+      };
+
+      const res = await counselingAPI.createRequest(submitData);
+      if (res.success) {
+        setIsSubmitted(true);
+        toast.success(res.message || 'Request sent securely');
+        if (onSuccess) onSuccess();
+      }
+    } catch (error) {
+      toast.error(error?.message || error || 'Something went wrong');
+    } finally {
       setIsLoading(false);
-      setIsSubmitted(true);
-      toast.success('Request sent securely through the campus network');
-    }, 1500);
+    }
   };
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value,
+    }));
   };
+
+  const selectedCounselorData = counselors.find((c) => c._id === formData.preferredCounselor);
 
   if (isSubmitted) {
     return (
-      <div className="min-h-screen bg-[#F0F9FF] flex items-center justify-center p-6 font-jakarta">
-        <div className="bg-white p-12 rounded-[40px] shadow-2xl shadow-teal-100/40 text-center max-w-xl w-full border border-teal-50 animate-in zoom-in duration-500">
-          <div className="w-24 h-24 bg-blue-50 rounded-[32px] flex items-center justify-center mx-auto mb-10 border border-teal-100 shadow-inner group transition-all">
-            <CheckCircle2
-              size={48}
-              className="text-blue-950 group-hover:scale-110 transition-transform"
-            />
-          </div>
-          <h2 className="text-4xl font-outfit font-bold text-blue-950 mb-6 tracking-tight">
-            Request Received
-          </h2>
-          <p className="text-blue-950/60 text-lg leading-relaxed mb-12 font-medium">
-            Your request has been securely logged. Our professional counselors will review your
-            details and reach out within <span className="text-teal-600 font-bold">24 hours</span>.
-          </p>
-          <div className="bg-blue-50/50 p-8 rounded-3xl mb-12 text-left border border-teal-50 flex items-start gap-4 shadow-inner">
-            <ShieldCheck className="text-teal-500 mt-1" size={24} />
-            <div>
-              <p className="text-[10px] font-bold text-blue-950/40 uppercase tracking-[0.2em] mb-2">
-                Privacy Guarantee
-              </p>
-              <p className="text-sm font-medium text-blue-950/60 leading-relaxed">
-                This conversation and your records are end-to-end encrypted and strictly
-                confidential within the campus professional matrix.
-              </p>
-            </div>
-          </div>
-          <Link to="/">
-            <button className="w-full py-5 bg-blue-950 text-white font-bold rounded-2xl hover:bg-teal-600 transition shadow-xl shadow-teal-100/50 active:scale-[0.98] text-xs uppercase tracking-[0.2em]">
-              Return to Dashboard
-            </button>
-          </Link>
+      <div className="bg-white p-8 rounded-[32px] text-center max-w-xl w-full font-jakarta">
+        <div className="w-20 h-20 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-8 border border-teal-100 shadow-inner">
+          <CheckCircle2 size={40} className="text-blue-950" />
         </div>
+        <h2 className="text-3xl font-outfit font-bold text-blue-950 mb-4 tracking-tight">
+          Request Received
+        </h2>
+        <p className="text-blue-950/60 text-base leading-relaxed mb-8">
+          Your request has been securely logged. Our professional counselors will reach out within{' '}
+          <span className="text-teal-600 font-bold">24 hours</span>.
+        </p>
+        <button
+          onClick={() => (onCancel ? onCancel() : navigate('/'))}
+          className="w-full py-4 bg-blue-950 text-white font-bold rounded-2xl hover:bg-teal-600 transition shadow-lg text-xs uppercase tracking-widest"
+        >
+          {onCancel ? 'Close' : 'Return to Dashboard'}
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#F0F9FF] flex items-center justify-center p-6 font-jakarta relative overflow-hidden">
-      {/* Background Decor */}
-      <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-teal-100/20 rounded-full blur-[120px] -z-10"></div>
-      <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-blue-100/20 rounded-full blur-[100px] -z-10"></div>
+    <div className="bg-white p-6 md:p-10 rounded-[32px] border border-teal-50 relative overflow-hidden font-jakarta max-h-[90vh] overflow-y-auto">
+      <div className="absolute top-0 left-0 w-full h-1.5 bg-blue-950"></div>
 
-      <div className="max-w-3xl w-full">
-        <Link
-          to="/"
-          className="inline-flex items-center gap-2 text-blue-900/40 hover:text-teal-600 font-bold text-[10px] uppercase tracking-widest mb-8 transition-all group"
-        >
-          <ChevronLeft size={16} className="group-hover:-translate-x-1 transition-transform" /> Back
-          to Dashboard
-        </Link>
-
-        <div className="bg-white p-10 md:p-16 rounded-[40px] shadow-2xl shadow-teal-100/40 border border-teal-50 relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-2 bg-blue-950"></div>
-
-          <header className="mb-12">
-            <div className="flex items-center gap-3 mb-8">
-              <div className="bg-blue-50 p-2.5 rounded-xl border border-teal-50 shadow-inner">
-                <Heart size={20} className="text-teal-500 fill-teal-500/10" />
-              </div>
-              <span className="text-[10px] font-bold text-blue-950/30 uppercase tracking-[0.2em]">
-                Professional Care Network
-              </span>
+      <header className="mb-8">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="bg-blue-50 p-2 rounded-xl border border-teal-50">
+              <Heart size={18} className="text-teal-500 fill-teal-500/10" />
             </div>
-            <h1 className="text-6xl font-outfit font-bold tracking-tight text-blue-950 mb-6 leading-none">
-              Counseling <span className="text-teal-500">Request</span>
-            </h1>
-            <p className="text-blue-950/60 text-lg font-medium leading-relaxed">
-              Take the first step toward wellness. Your mental health is our highest institutional
-              priority.
-            </p>
-          </header>
-
-          <form onSubmit={handleSubmit} className="space-y-10">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div>
-                <label className="block text-[10px] font-bold text-blue-950/30 uppercase tracking-[0.2em] mb-4 ml-1 flex items-center gap-2.5">
-                  <User size={14} className="text-teal-500" /> First Name
-                </label>
-                <input
-                  type="text"
-                  name="firstName"
-                  value={formData.firstName}
-                  required
-                  placeholder="e.g. John"
-                  className="w-full p-5 bg-blue-50/50 border border-teal-50 rounded-2xl focus:ring-4 focus:ring-teal-400/10 focus:border-teal-400 outline-none transition-all font-bold text-blue-950 placeholder:text-blue-300 shadow-inner"
-                  onChange={handleChange}
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-blue-950/30 uppercase tracking-[0.2em] mb-4 ml-1">
-                  Last Name
-                </label>
-                <input
-                  type="text"
-                  name="lastName"
-                  value={formData.lastName}
-                  required
-                  placeholder="e.g. Doe"
-                  className="w-full p-5 bg-blue-50/50 border border-teal-50 rounded-2xl focus:ring-4 focus:ring-teal-400/10 focus:border-teal-400 outline-none transition-all font-bold text-blue-950 placeholder:text-blue-300 shadow-inner"
-                  onChange={handleChange}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div>
-                <label className="block text-[10px] font-bold text-blue-950/30 uppercase tracking-[0.2em] mb-4 ml-1 flex items-center gap-2.5">
-                  <Mail size={14} className="text-teal-500" /> Institution Email
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  required
-                  placeholder="john@campus.edu"
-                  className="w-full p-5 bg-blue-50/50 border border-teal-50 rounded-2xl focus:ring-4 focus:ring-teal-400/10 focus:border-teal-400 outline-none transition-all font-bold text-blue-950 placeholder:text-blue-300 shadow-inner"
-                  onChange={handleChange}
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-blue-950/30 uppercase tracking-[0.2em] mb-4 ml-1 flex items-center gap-2.5">
-                  <Phone size={14} className="text-teal-500" /> Verified Contact
-                </label>
-                <input
-                  type="tel"
-                  name="phone"
-                  value={formData.phone}
-                  required
-                  placeholder="+1 (555) 000-0000"
-                  className="w-full p-5 bg-blue-50/50 border border-teal-50 rounded-2xl focus:ring-4 focus:ring-teal-400/10 focus:border-teal-400 outline-none transition-all font-bold text-blue-950 placeholder:text-blue-300 shadow-inner"
-                  onChange={handleChange}
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div>
-                <label className="block text-[10px] font-bold text-blue-950/30 uppercase tracking-[0.2em] mb-4 ml-1 flex items-center gap-2.5">
-                  <ShieldCheck size={14} className="text-teal-500" /> Type of Care
-                </label>
-                <div className="relative">
-                  <select
-                    name="serviceType"
-                    value={formData.serviceType}
-                    className="w-full p-5 bg-blue-50/50 border border-teal-50 rounded-2xl focus:ring-4 focus:ring-teal-400/10 focus:border-teal-400 outline-none transition-all font-bold text-blue-950 appearance-none cursor-pointer shadow-inner pr-12"
-                    onChange={handleChange}
-                  >
-                    <option>Individual Counseling</option>
-                    <option>Couples Therapy</option>
-                    <option>Group Session</option>
-                    <option>Peer Support</option>
-                  </select>
-                  <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-blue-300">
-                    <Waves size={18} className="animate-pulse" />
-                  </div>
-                </div>
-              </div>
-              <div>
-                <label className="block text-[10px] font-bold text-blue-950/30 uppercase tracking-[0.2em] mb-4 ml-1 flex items-center gap-2.5">
-                  <Clock size={14} className="text-teal-500" /> Incident Priority
-                </label>
-                <div className="flex gap-4 p-1.5 bg-blue-50/50 border border-teal-50 rounded-2xl h-[62px] shadow-inner">
-                  {['Standard', 'Urgent'].map((level) => (
-                    <button
-                      key={level}
-                      type="button"
-                      onClick={() => setFormData((prev) => ({ ...prev, urgency: level }))}
-                      className={`flex-1 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all ${
-                        formData.urgency === level
-                          ? 'bg-white text-blue-950 shadow-md border border-teal-100'
-                          : 'text-blue-300 hover:text-teal-600'
-                      }`}
-                    >
-                      {level}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-[10px] font-bold text-blue-950/30 uppercase tracking-[0.2em] mb-4 ml-1">
-                Clinical Context (Optional)
-              </label>
-              <textarea
-                name="message"
-                value={formData.message}
-                rows="4"
-                placeholder="Briefly describe what's on your mind... all information provided is strictly confidential."
-                className="w-full p-5 bg-blue-50/50 border border-teal-50 rounded-2xl focus:ring-4 focus:ring-teal-400/10 focus:border-teal-400 outline-none transition-all font-bold text-blue-950 placeholder:text-blue-300 resize-none h-40 shadow-inner"
-                onChange={handleChange}
-              ></textarea>
-            </div>
-
-            <div className="pt-6">
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full py-6 bg-blue-950 text-white font-bold rounded-3xl shadow-2xl shadow-teal-100/50 hover:bg-teal-600 transition-all flex justify-center items-center gap-4 active:scale-[0.98] disabled:opacity-50"
-              >
-                {isLoading ? (
-                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                ) : (
-                  <Anchor size={18} className="text-teal-400" />
-                )}
-                <span className="uppercase tracking-[0.2em] text-xs font-bold">
-                  {isLoading ? 'Initializing Protocol...' : 'Finalise Care Request'}
-                </span>
-              </button>
-              <div className="flex flex-col items-center gap-6 mt-12">
-                <div className="flex items-center gap-2.5 text-[10px] font-bold text-blue-900/30 uppercase tracking-[0.2em]">
-                  <ShieldCheck size={14} className="text-teal-500" /> Secure Campus Transmission
-                </div>
-                <p className="max-w-xs text-[10px] text-center text-blue-950/30 font-bold uppercase tracking-widest leading-relaxed">
-                  By submitting, you agree to our confidential care terms. In case of immediate
-                  danger, please use the SOS feature.
-                </p>
-              </div>
-            </div>
-          </form>
+            <span className="text-[9px] font-bold text-blue-950/30 uppercase tracking-[0.2em]">
+              Care Request Form
+            </span>
+          </div>
+          {onCancel && (
+            <button
+              onClick={onCancel}
+              className="text-blue-950/20 hover:text-red-500 transition-colors"
+            >
+              <ChevronLeft className="rotate-90" size={24} />
+            </button>
+          )}
         </div>
-      </div>
+        <h1 className="text-4xl font-outfit font-bold tracking-tight text-blue-950 mb-4">
+          Counseling <span className="text-teal-500">Uplink</span>
+        </h1>
+      </header>
+
+      <form onSubmit={handleSubmit} className="space-y-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-[9px] font-bold text-blue-950/30 uppercase tracking-[0.2em] mb-3 ml-1">
+              Category of Concern
+            </label>
+            <div className="relative">
+              <select
+                name="category"
+                value={formData.category}
+                className="w-full p-4 bg-blue-50/50 border border-teal-50 rounded-xl focus:ring-4 focus:ring-teal-400/10 focus:border-teal-400 outline-none transition-all font-bold text-blue-950 appearance-none cursor-pointer shadow-inner"
+                onChange={handleChange}
+              >
+                <option value="mental-health">Mental Health</option>
+                <option value="career">Career Guidance</option>
+                <option value="personal">Personal Issues</option>
+                <option value="academic">Academic Stress</option>
+                <option value="other">Other</option>
+              </select>
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-blue-300">
+                <Waves size={16} />
+              </div>
+            </div>
+          </div>
+          <div>
+            <label className="block text-[9px] font-bold text-blue-950/30 uppercase tracking-[0.2em] mb-3 ml-1">
+              Priority Level
+            </label>
+            <div className="flex gap-3 p-1 bg-blue-50/50 border border-teal-50 rounded-xl h-[58px] shadow-inner">
+              {['low', 'medium', 'high', 'urgent'].map((level) => (
+                <button
+                  key={level}
+                  type="button"
+                  onClick={() => setFormData((prev) => ({ ...prev, priority: level }))}
+                  className={`flex-1 rounded-lg font-bold text-[9px] uppercase tracking-widest transition-all ${
+                    formData.priority === level
+                      ? 'bg-white text-blue-950 shadow-md border border-teal-100'
+                      : 'text-blue-300 hover:text-teal-600'
+                  }`}
+                >
+                  {level}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-[9px] font-bold text-blue-950/30 uppercase tracking-[0.2em] mb-3 ml-1">
+              Select Specialist
+            </label>
+            <div className="relative">
+              <select
+                name="preferredCounselor"
+                value={formData.preferredCounselor}
+                className="w-full p-4 bg-blue-50/50 border border-teal-50 rounded-xl focus:ring-4 focus:ring-teal-400/10 focus:border-teal-400 outline-none transition-all font-bold text-blue-950 appearance-none cursor-pointer shadow-inner"
+                onChange={handleChange}
+              >
+                <option value="">Either / No Preference (In-Person Only)</option>
+                {counselors.map((c) => (
+                  <option key={c._id} value={c._id}>
+                    {c.firstName} {c.lastName} ({c.specialization})
+                  </option>
+                ))}
+              </select>
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-blue-300">
+                <Users size={16} />
+              </div>
+            </div>
+          </div>
+          <div>
+            <label className="block text-[9px] font-bold text-blue-950/30 uppercase tracking-[0.2em] mb-3 ml-1">
+              Session Mode
+            </label>
+            <div className="relative">
+              <select
+                name="preferredMode"
+                value={formData.preferredMode}
+                disabled={!formData.preferredCounselor}
+                className="w-full p-4 bg-blue-50/50 border border-teal-50 rounded-xl focus:ring-4 focus:ring-teal-400/10 focus:border-teal-400 outline-none transition-all font-bold text-blue-950 appearance-none cursor-pointer shadow-inner disabled:opacity-50"
+                onChange={handleChange}
+              >
+                <option value="in-person">In-Person Meeting</option>
+                <option value="online"> Call</option>
+                <option value="either">Either</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-[9px] font-bold text-blue-950/30 uppercase tracking-[0.2em] mb-3 ml-1">
+              When Do You Need This Session?
+            </label>
+            <div className="relative">
+              <input
+                type="date"
+                name="preferredDate"
+                value={formData.preferredDate}
+                className="w-full p-4 bg-blue-50/50 border border-teal-50 rounded-xl focus:ring-4 focus:ring-teal-400/10 focus:border-teal-400 outline-none transition-all font-bold text-blue-950 shadow-inner appearance-none h-[58px]"
+                onChange={handleChange}
+                min={new Date().toISOString().split('T')[0]}
+              />
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-blue-300">
+                <Calendar size={16} />
+              </div>
+            </div>
+            <p className="text-[9px] text-teal-600 font-medium mt-2 ml-1">
+              Select your preferred appointment date (today or future date)
+            </p>
+          </div>
+          <div>
+            <label className="block text-[9px] font-bold text-blue-950/30 uppercase tracking-[0.2em] mb-3 ml-1">
+              Time Preference / Slot
+            </label>
+            {isFetchingAvailability ? (
+              <div className="flex items-center gap-2 mb-2 ml-1">
+                <div className="w-3 h-3 border-2 border-teal-500/30 border-t-teal-500 rounded-full animate-spin"></div>
+                <span className="text-[10px] text-teal-600 font-bold uppercase tracking-widest">
+                  Fetching slots...
+                </span>
+              </div>
+            ) : availabilityDetail?.availability ||
+              initialAvailability ||
+              selectedCounselorData?.availability ? (
+              <div className="flex flex-col gap-1 mb-2 ml-1">
+                <p className="text-[10px] text-teal-600 font-bold uppercase tracking-wider">
+                  Expert Window:{' '}
+                  {availabilityDetail?.availability ||
+                    initialAvailability ||
+                    selectedCounselorData?.availability}
+                </p>
+                {availabilityDetail?.isBusy && (
+                  <p className="text-[9px] text-orange-500 font-black uppercase tracking-tighter flex items-center gap-1">
+                    <Clock size={10} /> Sector reaching capacity today (
+                    {availabilityDetail.requestsToday}/{availabilityDetail.maxStudentsPerDay})
+                  </p>
+                )}
+              </div>
+            ) : null}
+            <input
+              type="text"
+              name="preferredSlot"
+              value={formData.preferredSlot}
+              placeholder="e.g. Mon after 4 PM"
+              className="w-full p-4 bg-blue-50/50 border border-teal-50 rounded-xl focus:ring-4 focus:ring-teal-400/10 focus:border-teal-400 outline-none transition-all font-bold text-blue-950 placeholder:text-blue-300 shadow-inner"
+              onChange={handleChange}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="flex flex-col justify-center">
+              <label className="flex items-center gap-4 cursor-pointer p-4 bg-blue-50/50 border border-teal-50 rounded-xl shadow-inner transition-all hover:bg-white group relative h-[58px]">
+                <div className="relative">
+                  <input
+                    type="checkbox"
+                    name="hadPreviousCounseling"
+                    checked={formData.hadPreviousCounseling}
+                    onChange={handleChange}
+                    className="sr-only"
+                  />
+                  <div
+                    className={`w-10 h-6 rounded-full transition-colors ${formData.hadPreviousCounseling ? 'bg-teal-500' : 'bg-blue-200'}`}
+                  ></div>
+                  <div
+                    className={`absolute left-1 top-1 w-4 h-4 rounded-full bg-white transition-transform ${formData.hadPreviousCounseling ? 'translate-x-4' : ''}`}
+                  ></div>
+                </div>
+                <div>
+                  <span className="text-[9px] font-bold text-blue-950/60 uppercase tracking-widest block">
+                    Prior Consultation?
+                  </span>
+                  <span className="text-[8px] text-blue-950/20 font-bold uppercase tracking-widest mt-0.5 block">
+                    For continuity of care
+                  </span>
+                </div>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between mb-3 ml-1">
+            <label className="block text-[9px] font-bold text-blue-950/30 uppercase tracking-[0.2em]">
+              Request Description
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer group">
+              <input
+                type="checkbox"
+                name="isAnonymous"
+                checked={formData.isAnonymous}
+                onChange={handleChange}
+                className="sr-only"
+              />
+              <div
+                className={`w-4 h-4 border-2 rounded transition-colors ${formData.isAnonymous ? 'bg-teal-500 border-teal-500' : 'border-blue-200'}`}
+              >
+                {formData.isAnonymous && <CheckCircle2 size={12} className="text-white" />}
+              </div>
+              <span className="text-[9px] font-bold text-blue-950/30 uppercase tracking-widest group-hover:text-teal-500 transition-colors">
+                Proceed Anonymously
+              </span>
+            </label>
+          </div>
+          <textarea
+            name="description"
+            value={formData.description}
+            required
+            rows="3"
+            placeholder="Please share what's on your mind... all information is encrypted."
+            className="w-full p-4 bg-blue-50/50 border border-teal-50 rounded-xl focus:ring-4 focus:ring-teal-400/10 focus:border-teal-400 outline-none transition-all font-bold text-blue-950 placeholder:text-blue-300 resize-none h-32 shadow-inner"
+            onChange={handleChange}
+          ></textarea>
+        </div>
+
+        <div className="pt-4">
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full py-5 bg-blue-950 text-white font-bold rounded-2xl shadow-xl shadow-teal-100/30 hover:bg-teal-600 transition-all flex justify-center items-center gap-4 active:scale-[0.98] disabled:opacity-50"
+          >
+            {isLoading ? (
+              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+            ) : (
+              <Anchor size={18} className="text-teal-400" />
+            )}
+            <span className="uppercase tracking-[0.2em] text-[10px] font-bold">
+              {isLoading ? 'Processing...' : 'Finalize Request'}
+            </span>
+          </button>
+        </div>
+      </form>
     </div>
   );
 };

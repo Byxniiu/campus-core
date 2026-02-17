@@ -21,7 +21,7 @@ export const useStudentAuthStore = create(
         }),
 
       login: (userData, accessToken, refreshToken) => {
-        console.log('🏪 StudentAuthStore.login() called with:', {
+        console.log(' StudentAuthStore.login() called with:', {
           user: userData,
           hasAccessToken: !!accessToken,
           hasRefreshToken: !!refreshToken,
@@ -34,7 +34,7 @@ export const useStudentAuthStore = create(
           isAuthenticated: true,
         });
 
-        console.log('✅ StudentAuthStore.login() state updated');
+        console.log(' StudentAuthStore.login() state updated');
       },
 
       logout: () => {

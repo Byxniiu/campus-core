@@ -11,17 +11,30 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-import { counselingAPI } from '../../../api/counseling.js';
+import CounselingForm from '../CounselingForm';
+import { counselingAPI } from '../../../api/counseling';
 import toast from 'react-hot-toast';
 
 const CounselorsTab = () => {
   const [selectedItem, setSelectedItem] = useState(null);
   const [counselors, setCounselors] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [formCounselor, setFormCounselor] = useState(null);
 
   React.useEffect(() => {
     fetchCounselors();
   }, []);
+
+  const openForm = (counselor = null) => {
+    setFormCounselor(counselor);
+    setIsFormOpen(true);
+  };
+
+  const closeForm = () => {
+    setIsFormOpen(false);
+    setFormCounselor(null);
+  };
 
   const fetchCounselors = async () => {
     try {
@@ -164,6 +177,7 @@ const CounselorsTab = () => {
           <motion.button
             whileHover={{ scale: 1.05, backgroundColor: '#fff', color: '#1e3a8a' }}
             whileTap={{ scale: 0.95 }}
+            onClick={() => openForm(selectedItem)}
             className="relative z-10 bg-teal-400 text-blue-950 px-12 py-6 rounded-[24px] font-bold text-[11px] uppercase tracking-[0.3em] transition-all shadow-2xl flex items-center gap-5 group"
           >
             <MessageCircle size={22} className="group-hover:rotate-12 transition-transform" />{' '}
@@ -178,65 +192,125 @@ const CounselorsTab = () => {
   }
 
   return (
-    <motion.div
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-      className="max-w-5xl mx-auto pb-20 font-jakarta"
-    >
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-        {counselors.map((c) => (
-          <motion.div
-            key={c._id}
-            variants={itemVariants}
-            whileHover={{ y: -10 }}
-            onClick={() => setSelectedItem(c)}
-            className="group bg-white p-12 rounded-[48px] border border-teal-50 hover:border-teal-300 hover:shadow-2xl hover:shadow-teal-100/30 transition-all duration-700 cursor-pointer text-center md:text-left relative overflow-hidden"
-          >
-            <div className="absolute top-0 left-0 w-full h-3 bg-blue-50/50 group-hover:bg-blue-950 transition-colors"></div>
-            <div className="flex flex-col md:flex-row items-center gap-8 mb-10">
-              <motion.div
-                whileHover={{ scale: 1.05, rotate: 5 }}
-                className="w-24 h-24 bg-blue-50/50 rounded-[32px] group-hover:bg-blue-950 flex items-center justify-center text-blue-200 group-hover:text-teal-400 transition-all duration-700 shadow-inner"
-              >
-                <User size={48} className="opacity-40 group-hover:opacity-100 transition-opacity" />
-              </motion.div>
-              <div>
-                <h3 className="text-3xl font-outfit font-bold text-blue-950 group-hover:text-teal-600 transition tracking-tight mb-2 uppercase">
-                  {c.firstName} {c.lastName}
-                </h3>
-                <div className="flex items-center justify-center md:justify-start gap-3">
-                  <Radio size={14} className="text-teal-500" />
-                  <p className="text-blue-950/30 text-[10px] font-bold uppercase tracking-[0.2em]">
-                    {c.specialization}
-                  </p>
+    <>
+      <motion.div
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        className="max-w-5xl mx-auto pb-20 font-jakarta"
+      >
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
+          <div>
+            <h2 className="text-3xl font-outfit font-black text-blue-950 uppercase tracking-tighter">
+              Certified <span className="text-teal-500">Counselors</span>
+            </h2>
+            <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">
+              Access professional mental health and academic guidance
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+          {counselors.map((c) => (
+            <motion.div
+              key={c._id}
+              variants={itemVariants}
+              whileHover={{ y: -10 }}
+              onClick={() => setSelectedItem(c)}
+              className="group bg-white p-12 rounded-[48px] border border-teal-50 hover:border-teal-300 hover:shadow-2xl hover:shadow-teal-100/30 transition-all duration-700 cursor-pointer text-center md:text-left relative overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 w-full h-3 bg-blue-50/50 group-hover:bg-blue-950 transition-colors"></div>
+              <div className="flex flex-col md:flex-row items-center gap-8 mb-10">
+                <motion.div
+                  whileHover={{ scale: 1.05, rotate: 5 }}
+                  className="w-24 h-24 bg-blue-50/50 rounded-[32px] group-hover:bg-blue-950 flex items-center justify-center text-blue-200 group-hover:text-teal-400 transition-all duration-700 shadow-inner"
+                >
+                  <User
+                    size={48}
+                    className="opacity-40 group-hover:opacity-100 transition-opacity"
+                  />
+                </motion.div>
+                <div className="flex-1">
+                  <h3 className="text-3xl font-outfit font-bold text-blue-950 group-hover:text-teal-600 transition tracking-tight mb-2 uppercase">
+                    {c.firstName} {c.lastName}
+                  </h3>
+                  <div className="flex items-center justify-center md:justify-start gap-3">
+                    <Radio size={14} className="text-teal-500" />
+                    <p className="text-blue-950/30 text-[10px] font-bold uppercase tracking-[0.2em]">
+                      {c.specialization}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-            <p className="text-blue-950/40 text-sm font-medium line-clamp-2 mb-12 px-2 leading-relaxed">
-              "{c.bio}"
-            </p>
-            <div className="flex items-center justify-between border-t border-teal-50 pt-10">
-              <div className="flex items-center gap-3">
-                <div className="w-2.5 h-2.5 bg-teal-400 rounded-full animate-pulse shadow-[0_0_10px_rgba(45,212,191,1)]"></div>
-                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-950/20">
-                  Operational
-                </span>
+              <p className="text-blue-950/40 text-sm font-medium line-clamp-2 mb-12 px-2 leading-relaxed">
+                "{c.bio}"
+              </p>
+
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-6 border-t border-teal-50 pt-10">
+                <div className="flex items-center gap-3">
+                  <div className="w-2.5 h-2.5 bg-teal-400 rounded-full animate-pulse shadow-[0_0_10px_rgba(45,212,191,1)]"></div>
+                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-950/20">
+                    Operational
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openForm(c);
+                    }}
+                    className="bg-blue-950 text-white px-6 py-3 rounded-xl font-bold text-[9px] uppercase tracking-[0.2em] shadow-lg shadow-blue-900/20 flex items-center gap-2 group/btn"
+                  >
+                    <MessageCircle size={14} className="text-teal-400" />
+                    New Request
+                  </motion.button>
+
+                  <motion.span
+                    whileHover={{ x: 5 }}
+                    className="text-blue-950 font-bold text-[10px] uppercase tracking-[0.2em] flex items-center gap-3"
+                  >
+                    Profile <ArrowLeft className="rotate-180 text-teal-400" size={16} />
+                  </motion.span>
+                </div>
               </div>
-              <motion.span
-                whileHover={{ x: 5 }}
-                className="text-blue-950 font-bold text-[10px] uppercase tracking-[0.2em] flex items-center gap-3"
-              >
-                Profile Details <ArrowLeft className="rotate-180 text-teal-400" size={16} />
-              </motion.span>
-            </div>
-            <div className="absolute -bottom-8 -right-8 opacity-[0.01] pointer-events-none group-hover:rotate-12 transition-transform">
-              <Anchor size={140} />
-            </div>
+              <div className="absolute -bottom-8 -right-8 opacity-[0.01] pointer-events-none group-hover:rotate-12 transition-transform">
+                <Anchor size={140} />
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </motion.div>
+
+      <AnimatePresence>
+        {isFormOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8 bg-blue-950/40 backdrop-blur-md"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.9, y: 20, opacity: 0 }}
+              className="w-full max-w-4xl relative"
+            >
+              <CounselingForm
+                preSelectedCounselorId={formCounselor?._id}
+                initialAvailability={formCounselor?.availability}
+                onCancel={closeForm}
+                onSuccess={() => {
+                  setTimeout(closeForm, 2000);
+                }}
+              />
+            </motion.div>
           </motion.div>
-        ))}
-      </div>
-    </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 };
 
