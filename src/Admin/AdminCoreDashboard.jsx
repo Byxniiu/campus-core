@@ -15,6 +15,7 @@ import {
   rejectHelpRequest,
   getSystemStats,
 } from '../api/admin';
+import { timetableAPI } from '../api/timetables';
 import { useAdminAuthStore } from '../stores/useAdminAuthStore';
 import toast from 'react-hot-toast';
 import PendingFacultyApprovals from './PendingFacultyApprovals';
@@ -22,7 +23,7 @@ import AddCounselorModal from './AddCounselorModal';
 import AddStaffModal from './AddStaffModal';
 import AcceptanceModal from '../Counselors/AcceptanceModal';
 import { counselingAPI } from '../api/counseling';
-import { Calendar, Clock } from 'lucide-react';
+import { Calendar, Clock, Plus } from 'lucide-react';
 
 const AdminCoreDashboard = () => {
   const navigate = useNavigate();
@@ -59,8 +60,13 @@ const AdminCoreDashboard = () => {
     sos: [],
     counseling_requests: [],
     help_requests: [],
+    timetables: [],
     stats: null,
   });
+
+  // --- UI Filter States ---
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterDept, setFilterDept] = useState('All');
 
   // --- LOGOUT HANDLER ---
   const handleLogout = () => {
@@ -102,6 +108,9 @@ const AdminCoreDashboard = () => {
         case 'help_requests':
           response = await getHelpRequests();
           break;
+        case 'timetables':
+          response = await timetableAPI.getAllTimetables();
+          break;
         default:
           return;
       }
@@ -121,7 +130,11 @@ const AdminCoreDashboard = () => {
             fetchedData = fetchedData[keys[0]];
           }
         }
-        setData((prev) => ({ ...prev, [page]: fetchedData }));
+        if (page === 'dashboard') {
+          setData((prev) => ({ ...prev, stats: fetchedData }));
+        } else {
+          setData((prev) => ({ ...prev, [page]: fetchedData }));
+        }
       }
     } catch (error) {
       console.error(`[CRITICAL] Error fetching ${page}:`, error);
@@ -146,6 +159,7 @@ const AdminCoreDashboard = () => {
         'counseling_requests',
         'help_requests',
         'dashboard',
+        'timetables',
       ].includes(activePage)
     ) {
       fetchData(activePage);
@@ -315,7 +329,26 @@ Please bring your student ID. All discussions will remain strictly confidential.
       counseling_requests: 'COUNSELING REQUESTS',
       help_requests: 'HELP REQUESTS',
     };
-    return labels[key] || key.toUpperCase();
+    return labels[key] || key.replace('_', ' ').toUpperCase();
+  };
+
+  const getFilteredData = () => {
+    let list = data[activePage] || [];
+    if (!Array.isArray(list)) return [];
+
+    return list.filter((item) => {
+      const name = (
+        item.firstName ? `${item.firstName} ${item.lastName}` : item.name || ''
+      ).toLowerCase();
+      const id = (item.studentId || item.employeeId || item._id || '').toLowerCase();
+      const dept = (item.department || item.specialization || item.category || 'All').toLowerCase();
+
+      const matchesSearch =
+        name.includes(searchTerm.toLowerCase()) || id.includes(searchTerm.toLowerCase());
+      const matchesDept = filterDept === 'All' || dept === filterDept.toLowerCase();
+
+      return matchesSearch && matchesDept;
+    });
   };
 
   return (
@@ -332,50 +365,64 @@ Please bring your student ID. All discussions will remain strictly confidential.
             Administrative HUB
           </p>
         </div>
-        <nav className="flex-1 overflow-y-auto p-6 space-y-3 relative z-10">
+        <nav className="flex-1 overflow-y-auto p-6 space-y-8 relative z-10">
           {[
-            'dashboard',
-            'students',
-            'teachers',
-            'counselors',
-            'staff',
-            'events',
-            'sos',
-            'pending_approvals',
-            'counseling_requests',
-            'help_requests',
-          ]
-            .filter((key) => {
+            {
+              category: 'CORE',
+              items: ['dashboard', 'students', 'teachers', 'counselors', 'staff'],
+            },
+            {
+              category: 'MANAGEMENT',
+              items: ['events', 'timetables', 'pending_approvals'],
+            },
+            {
+              category: 'SUPPORT',
+              items: ['sos', 'counseling_requests', 'help_requests'],
+            },
+          ].map((cat) => {
+            const visibleItems = cat.items.filter((key) => {
               if (user?.role === 'admin') return true;
               if (user?.role === 'counselor') {
                 return ['students', 'teachers', 'sos', 'counseling_requests'].includes(key);
               }
               if (user?.role === 'staff') {
-                return ['students', 'teachers', 'sos', 'help_requests'].includes(key);
+                return ['students', 'teachers', 'sos', 'help_requests', 'timetables'].includes(key);
               }
               return false;
-            })
-            .map((key) => (
-              <button
-                key={key}
-                onClick={() => setActivePage(key)}
-                className={`w-full text-left px-6 py-4 rounded-2xl text-xs font-black transition-all duration-300 group relative overflow-hidden ${
-                  activePage === key
-                    ? 'bg-gradient-to-r from-teal-400 to-teal-500 text-blue-950 shadow-[0_8px_20px_-6px_rgba(45,212,191,0.5)]'
-                    : 'text-slate-400 hover:bg-white/5 hover:text-white border border-transparent hover:border-white/5'
-                }`}
-              >
-                <div className="relative z-10 flex items-center justify-between">
-                  <span>{formatSidebarLabel(key)}</span>
-                  {activePage === key && (
-                    <div className="w-1.5 h-1.5 rounded-full bg-blue-950"></div>
-                  )}
-                </div>
-                {activePage === key && (
-                  <div className="absolute inset-0 bg-white/20 animate-pulse-slow"></div>
-                )}
-              </button>
-            ))}
+            });
+
+            if (visibleItems.length === 0) return null;
+
+            return (
+              <div key={cat.category} className="space-y-2">
+                <p className="px-4 text-[10px] font-black text-teal-400 uppercase tracking-[0.2em] opacity-50">
+                  {cat.category}
+                </p>
+                {visibleItems.map((key) => (
+                  <button
+                    key={key}
+                    onClick={() => {
+                      setActivePage(key);
+                      setSearchTerm('');
+                      setFilterDept('All');
+                    }}
+                    className={`w-full text-left px-6 py-4 rounded-2xl text-[10px] font-black transition-all duration-300 group relative overflow-hidden ${
+                      activePage === key
+                        ? 'bg-gradient-to-r from-teal-400 to-teal-500 text-blue-950 shadow-[0_8px_20px_-6px_rgba(45,212,191,0.5)]'
+                        : 'text-slate-400 hover:bg-white/5 hover:text-white border border-transparent hover:border-white/5'
+                    }`}
+                  >
+                    <div className="relative z-10 flex items-center justify-between">
+                      <span>{formatSidebarLabel(key)}</span>
+                      {activePage === key && (
+                        <div className="w-1.5 h-1.5 rounded-full bg-blue-950"></div>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            );
+          })}
         </nav>
 
         {/* Sidebar Footer with Logout */}
@@ -406,189 +453,237 @@ Please bring your student ID. All discussions will remain strictly confidential.
 
       {/* MAIN CONTENT */}
       <main className="flex-1 overflow-y-auto p-10 bg-slate-50">
-        <header className="mb-10 flex justify-between items-center">
-          <h2 className="text-3xl font-black text-blue-950 capitalize tracking-tighter">
-            {formatSidebarLabel(activePage)}
-          </h2>
-          {activePage === 'counselors' && (
-            <button
-              onClick={() => setShowAddCounselorModal(true)}
-              className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-600/20 active:scale-95 flex items-center gap-2"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="3"
-                  d="M12 4v16m8-8H4"
+        <header className="mb-10">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-3xl font-black text-blue-950 capitalize tracking-tighter">
+              {formatSidebarLabel(activePage)}
+            </h2>
+            <div className="flex gap-4">
+              {activePage === 'counselors' && (
+                <button
+                  onClick={() => setShowAddCounselorModal(true)}
+                  className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-600/20 active:scale-95 flex items-center gap-2"
+                >
+                  <Plus size={16} strokeWidth={3} />
+                  Add Counselor
+                </button>
+              )}
+              {activePage === 'staff' && (
+                <button
+                  onClick={() => setShowAddStaffModal(true)}
+                  className="bg-teal-600 hover:bg-teal-500 text-white px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-teal-600/20 active:scale-95 flex items-center gap-2"
+                >
+                  <Plus size={16} strokeWidth={3} />
+                  Add Staff
+                </button>
+              )}
+            </div>
+          </div>
+
+          {['students', 'teachers', 'counselors', 'staff', 'timetables'].includes(activePage) && (
+            <div className="flex flex-wrap gap-4 items-center bg-white p-4 rounded-3xl border border-slate-200 shadow-sm">
+              <div className="flex-1 relative">
+                <input
+                  type="text"
+                  placeholder={`Search ${activePage}...`}
+                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-[11px] font-bold outline-none focus:ring-2 ring-teal-500/20"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                 />
-              </svg>
-              Add Counselor
-            </button>
-          )}
-          {activePage === 'staff' && (
-            <button
-              onClick={() => setShowAddStaffModal(true)}
-              className="bg-teal-600 hover:bg-teal-500 text-white px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-teal-600/20 active:scale-95 flex items-center gap-2"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="3"
-                  d="M12 4v16m8-8H4"
-                />
-              </svg>
-              Add Staff
-            </button>
+                <svg
+                  className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="3"
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
+                </svg>
+              </div>
+
+              {['students', 'teachers', 'timetables'].includes(activePage) && (
+                <select
+                  className="px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-[11px] font-black uppercase outline-none focus:ring-2 ring-teal-500/20 min-w-[150px]"
+                  value={filterDept}
+                  onChange={(e) => setFilterDept(e.target.value)}
+                >
+                  <option value="All">All Departments</option>
+                  <option value="Computer Science">Computer Science</option>
+                  <option value="Business">Business</option>
+                  <option value="Arts">Arts</option>
+                </select>
+              )}
+            </div>
           )}
         </header>
 
         {/* --- DASHBOARD OVERVIEW --- */}
-        {activePage === 'dashboard' && data.stats && (
-          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* Quick Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {[
-                {
-                  label: 'Total Students',
-                  value: data.stats.users.students,
-                  color: 'bg-blue-600',
-                  icon: '🎓',
-                },
-                {
-                  label: 'Teachers',
-                  value: data.stats.users.teachers,
-                  color: 'bg-emerald-600',
-                  icon: '👨‍🏫',
-                },
-                {
-                  label: 'Counselors',
-                  value: data.stats.users.counselors,
-                  color: 'bg-amber-600',
-                  icon: '🤝',
-                },
-                {
-                  label: 'Operational Staff',
-                  value: data.stats.users.staff,
-                  color: 'bg-indigo-600',
-                  icon: '🛠️',
-                },
-              ].map((stat, idx) => (
-                <div
-                  key={idx}
-                  className="bg-white border border-slate-200 p-8 rounded-[2rem] shadow-sm hover:shadow-md transition-all group"
-                >
-                  <div className="flex justify-between items-start mb-4">
-                    <span className="text-3xl">{stat.icon}</span>
-                    <div
-                      className={`w-2 h-8 rounded-full ${stat.color} opacity-50 group-hover:opacity-100 transition-opacity`}
-                    ></div>
-                  </div>
-                  <h4 className="text-[10px] font-black text-teal-600 uppercase tracking-widest">
-                    {stat.label}
-                  </h4>
-                  <p className="text-3xl font-black text-blue-900 mt-1">
-                    {stat.value.toString().padStart(2, '0')}
-                  </p>
-                </div>
-              ))}
+        {activePage === 'dashboard' &&
+          (loading && !data.stats ? (
+            <div className="flex flex-col items-center justify-center py-20">
+              <div className="w-12 h-12 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin mb-4"></div>
+              <p className="text-xs font-black text-teal-600 uppercase tracking-widest">
+                Aggregating System Intelligence...
+              </p>
             </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Critical Alerts */}
-              <div className="bg-white border border-slate-200 p-8 rounded-[3rem] shadow-sm">
-                <h3 className="text-xs font-black text-teal-900 uppercase tracking-widest mb-6 flex items-center gap-2">
-                  <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span> Critical
-                  Node Status
-                </h3>
-                <div className="space-y-4">
-                  {[
-                    {
-                      label: 'Pending SOS Alerts',
-                      value: data.stats.requests.sos,
-                      color: 'text-red-500',
-                      bg: 'bg-red-500/10',
-                    },
-                    {
-                      label: 'Counseling Requests',
-                      value: data.stats.requests.counseling,
-                      color: 'text-amber-500',
-                      bg: 'bg-amber-500/10',
-                    },
-                    {
-                      label: 'Help Requests',
-                      value: data.stats.requests.help,
-                      color: 'text-blue-500',
-                      bg: 'bg-blue-500/10',
-                    },
-                    {
-                      label: 'Faculty Approvals',
-                      value: data.stats.users.pendingFaculty,
-                      color: 'text-emerald-500',
-                      bg: 'bg-emerald-500/10',
-                    },
-                  ].map((alert, idx) => (
-                    <div
-                      key={idx}
-                      className={`flex justify-between items-center p-5 rounded-2xl ${alert.bg} border border-slate-100`}
-                    >
-                      <span className="text-[10px] font-black uppercase text-teal-700">
-                        {alert.label}
-                      </span>
-                      <span className={`text-xl font-black ${alert.color}`}>
-                        {alert.value.toString().padStart(2, '0')}
-                      </span>
+          ) : data.stats ? (
+            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              {/* Quick Stats Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {[
+                  {
+                    label: 'Total Students',
+                    value: data.stats.users.students,
+                    color: 'bg-blue-600',
+                    icon: '🎓',
+                  },
+                  {
+                    label: 'Teachers',
+                    value: data.stats.users.teachers,
+                    color: 'bg-emerald-600',
+                    icon: '👨‍🏫',
+                  },
+                  {
+                    label: 'Counselors',
+                    value: data.stats.users.counselors,
+                    color: 'bg-amber-600',
+                    icon: '🤝',
+                  },
+                  {
+                    label: 'Operational Staff',
+                    value: data.stats.users.staff,
+                    color: 'bg-indigo-600',
+                    icon: '🛠️',
+                  },
+                ].map((stat, idx) => (
+                  <div
+                    key={idx}
+                    className="bg-white border border-slate-200 p-8 rounded-[2rem] shadow-sm hover:shadow-md transition-all group"
+                  >
+                    <div className="flex justify-between items-start mb-4">
+                      <span className="text-3xl">{stat.icon}</span>
+                      <div
+                        className={`w-2 h-8 rounded-full ${stat.color} opacity-50 group-hover:opacity-100 transition-opacity`}
+                      ></div>
                     </div>
-                  ))}
-                </div>
+                    <h4 className="text-[10px] font-black text-teal-600 uppercase tracking-widest">
+                      {stat.label}
+                    </h4>
+                    <p className="text-3xl font-black text-blue-900 mt-1">
+                      {stat.value.toString().padStart(2, '0')}
+                    </p>
+                  </div>
+                ))}
               </div>
 
-              {/* System Health */}
-              <div className="bg-white border border-slate-200 p-8 rounded-[3rem] shadow-sm flex flex-col justify-center text-center">
-                <div className="mb-6">
-                  <div className="inline-block p-4 rounded-full bg-emerald-500/10 mb-4">
-                    <svg
-                      className="w-12 h-12 text-emerald-500"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-                      />
-                    </svg>
-                  </div>
-                  <h3 className="text-xl font-black text-blue-900 uppercase tracking-tighter italic">
-                    System Operational
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Critical Alerts */}
+                <div className="bg-white border border-slate-200 p-8 rounded-[3rem] shadow-sm">
+                  <h3 className="text-xs font-black text-teal-900 uppercase tracking-widest mb-6 flex items-center gap-2">
+                    <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span> Critical
+                    Node Status
                   </h3>
-                  <p className="text-xs text-teal-600 mt-2 font-bold uppercase tracking-widest">
-                    Gateway Verified • Secure Encryption
-                  </p>
+                  <div className="space-y-4">
+                    {[
+                      {
+                        label: 'Pending SOS Alerts',
+                        value: data.stats.requests.sos,
+                        color: 'text-red-500',
+                        bg: 'bg-red-500/10',
+                      },
+                      {
+                        label: 'Counseling Requests',
+                        value: data.stats.requests.counseling,
+                        color: 'text-amber-500',
+                        bg: 'bg-amber-500/10',
+                      },
+                      {
+                        label: 'Help Requests',
+                        value: data.stats.requests.help,
+                        color: 'text-blue-500',
+                        bg: 'bg-blue-500/10',
+                      },
+                      {
+                        label: 'Faculty Approvals',
+                        value: data.stats.users.pendingFaculty,
+                        color: 'text-emerald-500',
+                        bg: 'bg-emerald-500/10',
+                      },
+                      {
+                        label: 'Active Timetables',
+                        value: data.stats.requests.timetables || 0,
+                        color: 'text-indigo-500',
+                        bg: 'bg-indigo-500/10',
+                      },
+                    ].map((alert, idx) => (
+                      <div
+                        key={idx}
+                        className={`flex justify-between items-center p-5 rounded-2xl ${alert.bg} border border-slate-100`}
+                      >
+                        <span className="text-[10px] font-black uppercase text-teal-700">
+                          {alert.label}
+                        </span>
+                        <span className={`text-xl font-black ${alert.color}`}>
+                          {alert.value.toString().padStart(2, '0')}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4 mt-4">
-                  <button
-                    onClick={() => setActivePage('counseling_requests')}
-                    className="bg-slate-50 hover:bg-slate-100 py-4 rounded-2xl transition-all border border-slate-100"
-                  >
-                    <p className="text-[8px] font-black text-slate-400 uppercase mb-1">Queue</p>
-                    <p className="text-xs font-black text-blue-900">COUNSELING</p>
-                  </button>
-                  <button
-                    onClick={() => setActivePage('help_requests')}
-                    className="bg-slate-50 hover:bg-slate-100 py-4 rounded-2xl transition-all border border-slate-100"
-                  >
-                    <p className="text-[8px] font-black text-slate-400 uppercase mb-1">Queue</p>
-                    <p className="text-xs font-black text-blue-900">HELP</p>
-                  </button>
+
+                {/* System Health */}
+                <div className="bg-white border border-slate-200 p-8 rounded-[3rem] shadow-sm flex flex-col justify-center text-center">
+                  <div className="mb-6">
+                    <div className="inline-block p-4 rounded-full bg-emerald-500/10 mb-4">
+                      <svg
+                        className="w-12 h-12 text-emerald-500"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                        />
+                      </svg>
+                    </div>
+                    <h3 className="text-xl font-black text-blue-900 uppercase tracking-tighter italic">
+                      System Operational
+                    </h3>
+                    <p className="text-xs text-teal-600 mt-2 font-bold uppercase tracking-widest">
+                      Gateway Verified • Secure Encryption
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4 mt-4">
+                    <button
+                      onClick={() => setActivePage('counseling_requests')}
+                      className="bg-slate-50 hover:bg-slate-100 py-4 rounded-2xl transition-all border border-slate-100"
+                    >
+                      <p className="text-[8px] font-black text-slate-400 uppercase mb-1">Queue</p>
+                      <p className="text-xs font-black text-blue-900">COUNSELING</p>
+                    </button>
+                    <button
+                      onClick={() => setActivePage('help_requests')}
+                      className="bg-slate-50 hover:bg-slate-100 py-4 rounded-2xl transition-all border border-slate-100"
+                    >
+                      <p className="text-[8px] font-black text-slate-400 uppercase mb-1">Queue</p>
+                      <p className="text-xs font-black text-blue-900">HELP</p>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="text-center py-20 text-slate-500 font-bold uppercase tracking-widest text-[10px]">
+              No system statistics available
+            </div>
+          ))}
 
         {/* --- USER LISTS (Students, Teachers, Counselors, Staff) --- */}
         {['students', 'teachers', 'counselors', 'staff'].includes(activePage) && (
@@ -625,7 +720,7 @@ Please bring your student ID. All discussions will remain strictly confidential.
                     </td>
                   </tr>
                 ) : (
-                  data[activePage].map((item) => (
+                  getFilteredData().map((item) => (
                     <tr
                       key={item._id}
                       onClick={() => setSelectedPerson(item)}
@@ -1118,11 +1213,93 @@ Please bring your student ID. All discussions will remain strictly confidential.
           </div>
         )}
 
+        {/* --- TIMETABLES VIEW --- */}
+        {activePage === 'timetables' && (
+          <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-xl">
+            <table className="w-full text-left">
+              <thead className="text-[10px] text-slate-400 uppercase font-black border-b border-slate-100">
+                <tr>
+                  <th className="pb-4">Department</th>
+                  <th className="pb-4">Semester</th>
+                  <th className="pb-4">Section</th>
+                  <th className="pb-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="text-sm divide-y divide-slate-100">
+                {loading ? (
+                  <tr>
+                    <td colSpan="4" className="py-10 text-center">
+                      <div className="flex flex-col items-center">
+                        <div className="w-8 h-8 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
+                      </div>
+                    </td>
+                  </tr>
+                ) : getFilteredData().length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan="4"
+                      className="py-10 text-center text-slate-500 font-bold uppercase tracking-widest text-[10px]"
+                    >
+                      No timetables found
+                    </td>
+                  </tr>
+                ) : (
+                  getFilteredData().map((table) => (
+                    <tr key={table._id} className="group hover:bg-slate-50 transition-all">
+                      <td className="py-6 font-bold text-blue-900">{table.department}</td>
+                      <td className="py-6">
+                        <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-lg font-black text-[10px] uppercase">
+                          Semester {table.semester}
+                        </span>
+                      </td>
+                      <td className="py-6 font-mono font-bold text-slate-400">{table.section}</td>
+                      <td className="py-6 text-right">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={async () => {
+                              if (
+                                window.confirm('Are you sure you want to delete this timetable?')
+                              ) {
+                                try {
+                                  const res = await timetableAPI.deleteTimetable(table._id);
+                                  if (res.success) {
+                                    toast.success('Timetable deleted');
+                                    fetchData('timetables');
+                                  }
+                                } catch (err) {
+                                  toast.error(err.message || 'Delete failed');
+                                }
+                              }
+                            }}
+                            className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                          >
+                            <svg
+                              className="w-5 h-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                              />
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+
         {/* --- PENDING APPROVALS VIEW --- */}
         {activePage === 'pending_approvals' && <PendingFacultyApprovals />}
       </main>
-
-      {/* --- PERSON DETAIL POPUP --- */}
       {selectedPerson && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4"

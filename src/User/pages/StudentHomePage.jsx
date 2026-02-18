@@ -14,6 +14,7 @@ import {
   Radio,
   Anchor,
   FileText,
+  BookOpen,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStudentAuthStore } from '../../stores/useStudentAuthStore';
@@ -28,11 +29,12 @@ import CounselorsTab from './Dashboard/CounselorsTab';
 import StaffTab from './Dashboard/StaffTab';
 import ProfileTab from './Dashboard/ProfileTab';
 import MyRequestsTab from './Dashboard/MyRequestsTab';
+import StudyMaterialsTab from './Dashboard/StudyMaterialsTab';
 
 const StudentHomePage = () => {
   const navigate = useNavigate();
   const { user, logout, refreshToken } = useStudentAuthStore();
-  const [activeTab, setActiveTab] = useState('Safety SOS');
+  const [activeTab, setActiveTab] = useState('SOS');
 
   const handleLogout = async () => {
     try {
@@ -49,31 +51,33 @@ const StudentHomePage = () => {
   };
 
   const navItems = [
-    { id: 'Safety SOS', icon: <AlertTriangle size={20} /> },
-    { id: 'Chat Groups', icon: <MessageSquare size={20} /> },
-    { id: 'Upcoming Events', icon: <Calendar size={20} /> },
+    { id: 'SOS', icon: <AlertTriangle size={20} /> },
+    { id: 'Groups', icon: <MessageSquare size={20} /> },
+    { id: 'Events', icon: <Calendar size={20} /> },
     { id: 'Counseling', icon: <Users size={20} /> },
-    { id: 'Campus Staff', icon: <UserCircle size={20} /> },
-    { id: 'My Requests', icon: <FileText size={20} /> },
-    { id: 'My Profile', icon: <UserCircle size={20} /> },
+    { id: 'Staff', icon: <UserCircle size={20} /> },
+    { id: 'Academic', icon: <BookOpen size={20} /> },
+    { id: 'Requests', icon: <FileText size={20} /> },
   ];
 
   const renderActiveTab = () => {
     switch (activeTab) {
-      case 'Safety SOS':
+      case 'SOS':
         return <SOSTab />;
-      case 'Chat Groups':
+      case 'Groups':
         return <GroupsTab />;
-      case 'Upcoming Events':
+      case 'Events':
         return <EventsTab />;
       case 'Counseling':
         return <CounselorsTab />;
-      case 'Campus Staff':
+      case 'Staff':
         return <StaffTab />;
       case 'My Profile':
         return <ProfileTab />;
-      case 'My Requests':
+      case 'Requests':
         return <MyRequestsTab />;
+      case 'Academic':
+        return <StudyMaterialsTab />;
       default:
         return <SOSTab />;
     }
@@ -102,12 +106,12 @@ const StudentHomePage = () => {
         </div>
 
         {/* CENTER NAVIGATION - DESKTOP */}
-        <nav className="flex overflow-x-auto items-center gap-1 p-1.5 bg-white border border-slate-100 shadow-sm rounded-full mx-4 md:mx-8 scrollbar-hide">
+        <nav className="flex overflow-x-auto items-center gap-1 p-1 bg-white border border-slate-100 shadow-sm rounded-full mx-2 md:mx-4 scrollbar-hide">
           {navItems.map((item) => (
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
-              className={`relative px-5 py-2.5 rounded-full flex items-center gap-2.5 text-xs font-bold uppercase tracking-wider transition-all duration-300 ${
+              className={`relative px-4 py-2 rounded-full flex items-center gap-2 text-xs font-bold uppercase tracking-wider transition-all duration-300 ${
                 activeTab === item.id
                   ? 'text-white'
                   : 'text-slate-500 hover:text-blue-600 hover:bg-slate-50'
@@ -123,12 +127,12 @@ const StudentHomePage = () => {
               )}
               <span className="relative z-10 flex items-center justify-center">
                 {React.cloneElement(item.icon, {
-                  size: 16,
+                  size: 14,
                   className: activeTab === item.id ? 'text-teal-400' : 'opacity-70',
                   strokeWidth: 2.5,
                 })}
               </span>
-              <span className="relative z-10">{item.id}</span>
+              <span className="relative z-10 hidden xl:block">{item.id}</span>
             </button>
           ))}
         </nav>

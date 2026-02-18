@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { adminAPI } from '../api/admin';
 import { authAPI } from '../api/auth';
@@ -28,7 +28,15 @@ import {
   Phone,
   Edit,
   Image as ImageIcon,
+  BookOpen,
+  Video,
+  FileText as FileIcon,
+  Link as LinkIcon,
+  Trash2,
+  Plus,
 } from 'lucide-react';
+import { studyMaterialAPI } from '../api/studyMaterial';
+import { useSocketStore } from '../stores/useSocketStore';
 
 const FacultyDashboard = () => {
   const navigate = useNavigate();
@@ -42,18 +50,7 @@ const FacultyDashboard = () => {
     staff: [],
   });
 
-  useEffect(() => {
-    const savedUser = localStorage.getItem('faculty_user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-      // Proactively fetch latest profile to ensure department etc are up to date
-      fetchUserProfile();
-    } else {
-      navigate('/faculty-login');
-    }
-  }, [navigate]);
-
-  const fetchUserProfile = async () => {
+  const fetchUserProfile = useCallback(async () => {
     try {
       const response = await authAPI.getMe();
       if (response.success) {
@@ -64,15 +61,32 @@ const FacultyDashboard = () => {
     } catch (error) {
       console.error('Profile sync error:', error);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    if (user && user.department) {
-      fetchAllData();
+    const savedUser = localStorage.getItem('faculty_user');
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
+      // Proactively fetch latest profile to ensure department etc are up to date
+      fetchUserProfile();
+    } else {
+      navigate('/faculty-login');
     }
-  }, [user]);
+  }, [navigate, fetchUserProfile]);
 
-  const fetchAllData = async () => {
+  const fetchLessons = useCallback(async () => {
+    try {
+      const response = await studyMaterialAPI.getMyUploads();
+      if (response.success) {
+        setLessons(response.data.materials || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch lessons:', error);
+      toast.error('Failed to load study materials');
+    }
+  }, []);
+
+  const fetchAllData = useCallback(async () => {
     setLoading(true);
     try {
       const [studentsRes, eventsRes, counselorsRes, staffRes] = await Promise.all([
@@ -88,13 +102,21 @@ const FacultyDashboard = () => {
         counselors: counselorsRes.data || [],
         staff: staffRes.data || [],
       });
+      // Also fetch lessons for the count
+      fetchLessons();
     } catch (error) {
       console.error('Data fetch error:', error);
       toast.error('Failed to synchronize academic data');
     } finally {
       setLoading(false);
     }
-  };
+  }, [fetchLessons]);
+
+  useEffect(() => {
+    if (user && user.department) {
+      fetchAllData();
+    }
+  }, [user, fetchAllData]);
 
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [selectedStudent, setSelectedStudent] = useState(null);
@@ -115,6 +137,115 @@ const FacultyDashboard = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editingEventId, setEditingEventId] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
+
+  // Study Materials (Lessons) States
+  const [lessons, setLessons] = useState([]);
+  const [lessonForm, setLessonForm] = useState({
+    title: '',
+    description: '',
+    subject: '',
+    semester: '1',
+    department: '',
+    category: 'notes',
+    resourceType: 'document',
+    videoUrl: '',
+    externalLinks: [{ title: '', url: '', description: '' }],
+    files: [],
+    tags: '',
+  });
+  const [editingLessonId, setEditingLessonId] = useState(null);
+  const [isEditingLesson, setIsEditingLesson] = useState(false);
+  const [lessonTab, setLessonTab] = useState('list'); // 'list' or 'create'
+
+  // Chat States
+  const [messages, setMessages] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const [activeChat, setActiveChat] = useState({
+    id: 'dept-group',
+    name: 'Departmental Forum',
+    type: 'group',
+  });
+  const [peers, setPeers] = useState([]);
+  const { socket, connect, isConnected } = useSocketStore();
+
+  useEffect(() => {
+    const token = localStorage.getItem('faculty_token');
+    if (token && !socket) {
+      connect(token);
+    }
+  }, [socket, connect]);
+
+  useEffect(() => {
+    if (socket) {
+      const handleGroupMessage = (message) => {
+        if (activeChat.id === 'dept-group') {
+          setMessages((prev) => [...prev, message]);
+        }
+      };
+
+      const handlePrivateMessage = (message) => {
+        if (activeChat.id === message.senderId) {
+          setMessages((prev) => [...prev, message]);
+        }
+        // In a real app we'd have a notification or update the peer list indicator here
+      };
+
+      socket.on('faculty:group-message', handleGroupMessage);
+      socket.on('message:new', handlePrivateMessage);
+
+      return () => {
+        socket.off('faculty:group-message', handleGroupMessage);
+        socket.off('message:new', handlePrivateMessage);
+      };
+    }
+  }, [socket, activeChat]);
+
+  const handleSendChat = (e) => {
+    e.preventDefault();
+    if (!chatInput.trim() || !socket) return;
+
+    if (activeChat.type === 'group') {
+      socket.emit('faculty:group-send', { text: chatInput });
+    } else {
+      socket.emit('message:send', {
+        recipientId: activeChat.id,
+        text: chatInput,
+        senderName: `${user?.firstName} ${user?.lastName}`,
+      });
+      // For private messages, we need to add our own message to the local state
+      setMessages((prev) => [
+        ...prev,
+        {
+          text: chatInput,
+          senderId: user?._id,
+          senderName: 'You',
+          timestamp: new Date().toISOString(),
+        },
+      ]);
+    }
+    setChatInput('');
+  };
+
+  const fetchPeers = useCallback(async () => {
+    try {
+      const res = await adminAPI.getAllTeachers();
+      if (res.success) {
+        // Filter out self and only show department peers
+        const deptPeers = (res.data || []).filter(
+          (u) => u._id !== user?._id && u.department === user?.department
+        );
+        setPeers(deptPeers);
+      }
+    } catch (err) {
+      console.error('Failed to fetch peers:', err);
+    }
+  }, [user?._id, user?.department]);
+
+  useEffect(() => {
+    if (activePage === 'messages') {
+      fetchPeers();
+    }
+  }, [activePage, fetchPeers]);
 
   /* ---------------- HANDLERS ---------------- */
   const handleCreateEvent = async (e) => {
@@ -202,6 +333,113 @@ const FacultyDashboard = () => {
     }
   };
 
+  /* ---------------- STUDY MATERIAL HANDLERS ---------------- */
+
+  useEffect(() => {
+    if (activePage === 'lessons') {
+      fetchLessons();
+    }
+  }, [activePage, fetchLessons]);
+
+  const handleCreateLesson = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const formData = new FormData();
+      formData.append('title', lessonForm.title);
+      formData.append('description', lessonForm.description);
+      formData.append('subject', lessonForm.subject);
+      formData.append('semester', lessonForm.semester);
+      formData.append('department', lessonForm.department || user?.department || 'General');
+      formData.append('category', lessonForm.category);
+      formData.append('resourceType', lessonForm.resourceType);
+
+      if (lessonForm.videoUrl) formData.append('videoUrl', lessonForm.videoUrl);
+      if (lessonForm.tags) formData.append('tags', lessonForm.tags);
+
+      // Filter out empty links
+      const validLinks = lessonForm.externalLinks.filter((l) => l.title && l.url);
+      if (validLinks.length > 0) {
+        formData.append('externalLinks', JSON.stringify(validLinks));
+      }
+
+      if (lessonForm.files && lessonForm.files.length > 0) {
+        for (let i = 0; i < lessonForm.files.length; i++) {
+          formData.append('files', lessonForm.files[i]);
+        }
+      }
+
+      let response;
+      if (isEditingLesson) {
+        response = await studyMaterialAPI.update(editingLessonId, lessonForm);
+      } else {
+        response = await studyMaterialAPI.create(formData);
+      }
+
+      if (response.success) {
+        toast.success(isEditingLesson ? 'Material updated!' : 'Study material published!');
+        fetchLessons();
+        resetLessonForm();
+        setLessonTab('list');
+      }
+    } catch (error) {
+      console.error('Lesson save error:', error);
+      toast.error(error.message || 'Failed to save study material');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetLessonForm = () => {
+    setLessonForm({
+      title: '',
+      description: '',
+      subject: '',
+      semester: '1',
+      category: 'notes',
+      resourceType: 'document',
+      videoUrl: '',
+      externalLinks: [{ title: '', url: '', description: '' }],
+      files: [],
+      tags: '',
+    });
+    setIsEditingLesson(false);
+    setEditingLessonId(null);
+  };
+
+  const handleDeleteLesson = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this material?')) return;
+    try {
+      await studyMaterialAPI.delete(id);
+      toast.success('Material deleted');
+      fetchLessons();
+    } catch {
+      toast.error('Failed to delete material');
+    }
+  };
+
+  const handleEditLesson = (lesson) => {
+    setLessonForm({
+      title: lesson.title || '',
+      description: lesson.description || '',
+      subject: lesson.subject || '',
+      semester: lesson.semester?.toString() || '1',
+      department: lesson.department || '',
+      category: lesson.category || 'notes',
+      resourceType: lesson.resourceType || 'document',
+      videoUrl: lesson.videoUrl || '',
+      externalLinks:
+        lesson.externalLinks?.length > 0
+          ? lesson.externalLinks
+          : [{ title: '', url: '', description: '' }],
+      files: [], // Files are not pre-filled for security/simplicity
+      tags: lesson.tags?.join(', ') || '',
+    });
+    setEditingLessonId(lesson._id);
+    setIsEditingLesson(true);
+    setLessonTab('create');
+  };
+
   const handleLogout = async () => {
     try {
       localStorage.removeItem('faculty_token');
@@ -215,6 +453,7 @@ const FacultyDashboard = () => {
 
   const menuItems = [
     { id: 'overview', label: 'Overview', icon: <LayoutDashboard size={20} /> },
+    { id: 'lessons', label: 'Study Materials', icon: <BookOpen size={20} /> },
     { id: 'events', label: 'Events & News', icon: <Calendar size={20} /> },
     { id: 'attendance', label: 'Student Registry', icon: <Users size={20} /> },
     { id: 'counselors', label: 'Counselors', icon: <Heart size={20} /> },
@@ -331,7 +570,7 @@ const FacultyDashboard = () => {
         {activePage === 'overview' && (
           <div className="space-y-10 animate-in fade-in slide-in-from-bottom-6 duration-700">
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
               {[
                 {
                   label: 'Total Events',
@@ -350,6 +589,12 @@ const FacultyDashboard = () => {
                   val: data.counselors.length,
                   icon: <Heart className="text-amber-400" />,
                   color: 'border-amber-500/30',
+                },
+                {
+                  label: 'Study Materials',
+                  val: lessons.length,
+                  icon: <BookOpen className="text-teal-400" />,
+                  color: 'border-teal-500/30',
                 },
                 {
                   label: 'Support Nodes',
@@ -464,6 +709,469 @@ const FacultyDashboard = () => {
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* --- STUDY MATERIALS (LESSONS) PAGE --- */}
+        {activePage === 'lessons' && (
+          <div className="animate-in fade-in slide-in-from-right-10 duration-500">
+            <div className="flex items-center gap-8 border-b border-slate-800/50 mb-10 px-2 overflow-x-auto whitespace-nowrap scrollbar-hide">
+              {['List', 'Create Material'].map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setLessonTab(tab === 'List' ? 'list' : 'create')}
+                  className={`pb-4 text-xs font-black uppercase tracking-[0.2em] transition-all relative ${lessonTab === (tab === 'List' ? 'list' : 'create') ? 'text-teal-400' : 'text-slate-600 hover:text-slate-400'}`}
+                >
+                  {tab}
+                  {lessonTab === (tab === 'List' ? 'list' : 'create') && (
+                    <span className="absolute bottom-0 left-0 w-full h-1 bg-teal-500 rounded-t-full shadow-[0_0_15px_rgba(99,102,241,0.5)]"></span>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {lessonTab === 'create' ? (
+              <div className="max-w-4xl mx-auto bg-white p-10 rounded-[3.5rem] border border-slate-200 shadow-xl">
+                <header className="mb-10 text-center relative">
+                  {isEditingLesson && (
+                    <button
+                      onClick={resetLessonForm}
+                      className="absolute left-0 top-0 p-3 bg-slate-50 rounded-xl text-slate-400 hover:text-slate-900 transition-all"
+                    >
+                      <ChevronRight size={18} className="rotate-180" />
+                    </button>
+                  )}
+                  <h3 className="text-3xl font-black text-slate-900 italic uppercase tracking-tighter">
+                    Learning{' '}
+                    <span className="text-teal-600">
+                      {isEditingLesson ? 'Re-Configuration' : 'Creation'}
+                    </span>
+                  </h3>
+                  <p className="text-[10px] text-slate-400 font-bold mt-2 uppercase tracking-[0.3em]">
+                    Academic Asset Management System
+                  </p>
+                </header>
+
+                <form onSubmit={handleCreateLesson} className="space-y-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="space-y-6">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">
+                          Material Title
+                        </label>
+                        <input
+                          required
+                          placeholder="EX: Introduction to Data Structures"
+                          className="w-full p-4 rounded-2xl bg-slate-50 border border-slate-100 outline-none focus:ring-2 ring-teal-500 text-sm font-bold text-slate-900 transition-all"
+                          value={lessonForm.title}
+                          onChange={(e) => setLessonForm({ ...lessonForm, title: e.target.value })}
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">
+                            Subject
+                          </label>
+                          <input
+                            required
+                            placeholder="EX: Computer Science"
+                            className="w-full p-4 rounded-2xl bg-slate-50 border border-slate-100 outline-none focus:ring-2 ring-teal-500 text-sm font-bold text-slate-900 transition-all"
+                            value={lessonForm.subject}
+                            onChange={(e) =>
+                              setLessonForm({ ...lessonForm, subject: e.target.value })
+                            }
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">
+                            Semester
+                          </label>
+                          <select
+                            className="w-full p-4 rounded-2xl bg-slate-50 border border-slate-100 outline-none focus:ring-2 ring-teal-500 text-sm font-bold text-slate-900 transition-all appearance-none shadow-inner"
+                            value={lessonForm.semester}
+                            onChange={(e) =>
+                              setLessonForm({ ...lessonForm, semester: e.target.value })
+                            }
+                          >
+                            {[1, 2, 3, 4, 5, 6].map((num) => (
+                              <option key={num} value={num}>
+                                Semester {num}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">
+                            Category
+                          </label>
+                          <select
+                            className="w-full p-4 rounded-2xl bg-slate-50 border border-slate-100 outline-none focus:ring-2 ring-teal-500 text-sm font-bold text-slate-900 transition-all appearance-none shadow-inner"
+                            value={lessonForm.category}
+                            onChange={(e) =>
+                              setLessonForm({ ...lessonForm, category: e.target.value })
+                            }
+                          >
+                            <option value="notes">Academic Notes</option>
+                            <option value="video-lesson">Video Lesson</option>
+                            <option value="assignment">Assignment</option>
+                            <option value="previous-papers">Previous Papers</option>
+                            <option value="reference">Reference Material</option>
+                            <option value="syllabus">Syllabus</option>
+                          </select>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">
+                            Resource Type
+                          </label>
+                          <select
+                            className="w-full p-4 rounded-2xl bg-slate-50 border border-slate-100 outline-none focus:ring-2 ring-teal-500 text-sm font-bold text-slate-900 transition-all appearance-none shadow-inner"
+                            value={lessonForm.resourceType}
+                            onChange={(e) =>
+                              setLessonForm({ ...lessonForm, resourceType: e.target.value })
+                            }
+                          >
+                            <option value="document">Document (PDF/DOC)</option>
+                            <option value="video">YouTube Video</option>
+                            <option value="link">External Link</option>
+                            <option value="mixed">Mixed Assets</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-6">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">
+                          Description
+                        </label>
+                        <textarea
+                          placeholder="Provide a detailed brief of this learning resource..."
+                          className="w-full p-6 rounded-3xl bg-slate-800 border-none outline-none focus:ring-2 ring-teal-500 text-xs font-medium text-slate-300 min-h-[140px] resize-none leading-relaxed shadow-inner"
+                          value={lessonForm.description}
+                          onChange={(e) =>
+                            setLessonForm({ ...lessonForm, description: e.target.value })
+                          }
+                          required
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">
+                            Department
+                          </label>
+                          <select
+                            required
+                            className="w-full p-4 rounded-2xl bg-slate-50 border border-slate-100 outline-none focus:ring-2 ring-teal-500 text-sm font-bold text-slate-900 transition-all appearance-none shadow-inner"
+                            value={lessonForm.department}
+                            onChange={(e) =>
+                              setLessonForm({ ...lessonForm, department: e.target.value })
+                            }
+                          >
+                            <option value="">Select Department</option>
+                            <option value="Computer Science">Computer Science</option>
+                            <option value="BBA">BBA</option>
+                            <option value="BCom">BCom</option>
+                            <option value="Psychology">Psychology</option>
+                            <option value="English">English</option>
+                            <option value="Economics">Economics</option>
+                            <option value="General">General/Common</option>
+                          </select>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">
+                            Search Tags
+                          </label>
+                          <input
+                            placeholder="java, algorithms"
+                            className="w-full p-4 rounded-2xl bg-slate-50 border border-slate-100 outline-none focus:ring-2 ring-teal-500 text-sm font-bold text-slate-900 transition-all shadow-inner"
+                            value={lessonForm.tags}
+                            onChange={(e) => setLessonForm({ ...lessonForm, tags: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Dynamic Fields based on Resource Type */}
+                  <div className="p-8 bg-slate-900/50 rounded-[2.5rem] border border-slate-800 border-dashed space-y-8">
+                    {(lessonForm.resourceType === 'video' ||
+                      lessonForm.resourceType === 'mixed') && (
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-teal-400 uppercase tracking-widest px-2 flex items-center gap-2">
+                          <Video size={14} /> YouTube Integration URL
+                        </label>
+                        <input
+                          placeholder="https://www.youtube.com/watch?v=..."
+                          className="w-full p-4 rounded-2xl bg-slate-800 border-none outline-none focus:ring-2 ring-teal-500 text-sm font-mono text-teal-400 placeholder:text-slate-600 transition-all shadow-inner"
+                          value={lessonForm.videoUrl}
+                          onChange={(e) =>
+                            setLessonForm({ ...lessonForm, videoUrl: e.target.value })
+                          }
+                        />
+                      </div>
+                    )}
+
+                    {(lessonForm.resourceType === 'document' ||
+                      lessonForm.resourceType === 'mixed') && (
+                      <div className="space-y-4">
+                        <label className="text-[10px] font-black text-teal-400 uppercase tracking-widest px-2 flex items-center gap-2">
+                          <FileIcon size={14} /> Academic Assets (PDF/DOC)
+                        </label>
+                        <input
+                          type="file"
+                          multiple
+                          onChange={(e) => setLessonForm({ ...lessonForm, files: e.target.files })}
+                          className="block w-full text-xs text-slate-400 file:mr-4 file:py-3 file:px-8 file:rounded-xl file:border-0 file:text-[10px] file:font-black file:uppercase file:tracking-widest file:bg-teal-600 file:text-white hover:file:bg-teal-500 transition-all cursor-pointer"
+                        />
+                        <p className="text-[9px] text-slate-600 italic px-2">
+                          * Secure institutional encryption will be applied during transmission. Max
+                          5 files.
+                        </p>
+                      </div>
+                    )}
+
+                    {(lessonForm.resourceType === 'link' ||
+                      lessonForm.resourceType === 'mixed') && (
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between px-2">
+                          <label className="text-[10px] font-black text-teal-400 uppercase tracking-widest flex items-center gap-2">
+                            <LinkIcon size={14} /> External Intel Links
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setLessonForm({
+                                ...lessonForm,
+                                externalLinks: [
+                                  ...lessonForm.externalLinks,
+                                  { title: '', url: '', description: '' },
+                                ],
+                              })
+                            }
+                            className="p-2 bg-teal-600/10 text-teal-400 rounded-lg hover:bg-teal-600 hover:text-white transition-all shadow-sm"
+                          >
+                            <Plus size={16} />
+                          </button>
+                        </div>
+
+                        <div className="space-y-4">
+                          {lessonForm.externalLinks.map((link, idx) => (
+                            <div
+                              key={idx}
+                              className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in slide-in-from-left-4 duration-300"
+                            >
+                              <input
+                                placeholder="Link Title (EX: Reference Paper)"
+                                className="w-full p-4 rounded-xl bg-slate-800 border-none outline-none focus:ring-2 ring-teal-500 text-xs font-bold text-white shadow-inner"
+                                value={link.title}
+                                onChange={(e) => {
+                                  const newLinks = [...lessonForm.externalLinks];
+                                  newLinks[idx].title = e.target.value;
+                                  setLessonForm({ ...lessonForm, externalLinks: newLinks });
+                                }}
+                              />
+                              <div className="relative">
+                                <input
+                                  placeholder="https://..."
+                                  className="w-full p-4 pr-12 rounded-xl bg-slate-800 border-none outline-none focus:ring-2 ring-teal-500 text-xs font-mono text-teal-400 shadow-inner"
+                                  value={link.url}
+                                  onChange={(e) => {
+                                    const newLinks = [...lessonForm.externalLinks];
+                                    newLinks[idx].url = e.target.value;
+                                    setLessonForm({ ...lessonForm, externalLinks: newLinks });
+                                  }}
+                                />
+                                {lessonForm.externalLinks.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const newLinks = lessonForm.externalLinks.filter(
+                                        (_, i) => i !== idx
+                                      );
+                                      setLessonForm({ ...lessonForm, externalLinks: newLinks });
+                                    }}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-rose-500 hover:scale-110 transition-transform"
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full py-6 bg-teal-600 hover:bg-teal-500 text-white font-black text-sm uppercase tracking-[0.4em] rounded-[2rem] shadow-2xl shadow-teal-600/30 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-4"
+                  >
+                    {loading ? (
+                      'TRANSMITTING ASSETS...'
+                    ) : (
+                      <>
+                        <BookOpen size={20} />
+                        {isEditingLesson ? 'UPDATE ACADEMIC SEQUENCE' : 'PUBLISH ACADEMIC SEQUENCE'}
+                      </>
+                    )}
+                  </button>
+                </form>
+              </div>
+            ) : (
+              /* Lessons List View */
+              <div className="space-y-8">
+                <header className="flex items-center justify-between px-4">
+                  <div>
+                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">
+                      Repository Contents
+                    </h3>
+                    <p className="text-[10px] text-teal-600 font-bold uppercase tracking-widest italic mt-1 font-mono">
+                      Active Transmissions: {lessons.length.toString().padStart(2, '0')}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <button
+                      onClick={fetchLessons}
+                      className="p-3 bg-white border border-slate-200 rounded-xl text-slate-400 hover:text-teal-600 transition-all shadow-sm"
+                    >
+                      <TrendingUp size={18} className="rotate-90" />
+                    </button>
+                    <button
+                      onClick={() => setLessonTab('create')}
+                      className="px-6 py-3.5 bg-blue-950 text-white font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-teal-600 transition-all shadow-lg shadow-blue-900/20"
+                    >
+                      NEW_ASSET
+                    </button>
+                  </div>
+                </header>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {lessons.map((lesson) => (
+                    <div
+                      key={lesson._id}
+                      className="group bg-white p-8 rounded-[3rem] border border-slate-100 shadow-sm hover:shadow-2xl hover:border-teal-400 transition-all duration-500 relative flex flex-col"
+                    >
+                      <div className="flex justify-between items-start mb-6">
+                        <div
+                          className={`w-14 h-14 rounded-2xl flex items-center justify-center shadow-inner ${
+                            lesson.resourceType === 'video'
+                              ? 'bg-rose-50 text-rose-500'
+                              : lesson.resourceType === 'document'
+                                ? 'bg-blue-50 text-blue-500'
+                                : lesson.resourceType === 'link'
+                                  ? 'bg-emerald-50 text-emerald-500'
+                                  : 'bg-indigo-50 text-indigo-500'
+                          }`}
+                        >
+                          {lesson.resourceType === 'video' ? (
+                            <Video size={24} />
+                          ) : lesson.resourceType === 'document' ? (
+                            <FileIcon size={24} />
+                          ) : lesson.resourceType === 'link' ? (
+                            <LinkIcon size={24} />
+                          ) : (
+                            <BookOpen size={24} />
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleEditLesson(lesson)}
+                            className="p-2.5 bg-slate-50 text-slate-400 hover:text-teal-600 rounded-xl transition-all"
+                          >
+                            <Edit size={14} />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteLesson(lesson._id)}
+                            className="p-2.5 bg-slate-50 text-slate-400 hover:text-rose-500 rounded-xl transition-all"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-[8px] font-black px-2.5 py-1 bg-blue-950 text-white rounded-md uppercase tracking-widest">
+                            SEM_{lesson.semester}
+                          </span>
+                          <span className="text-[8px] font-black px-2.5 py-1 bg-teal-50 text-teal-600 border border-teal-100 rounded-md uppercase tracking-widest italic">
+                            {lesson.category}
+                          </span>
+                        </div>
+                        <h4 className="text-xl font-black text-slate-900 italic uppercase tracking-tighter mb-2 group-hover:text-teal-600 transition-colors">
+                          {lesson.title}
+                        </h4>
+                        <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest mb-4 flex items-center gap-2">
+                          <LayoutDashboard size={10} className="text-teal-400" /> {lesson.subject}
+                        </p>
+                        <p className="text-xs text-slate-500 font-medium line-clamp-3 leading-relaxed italic mb-8">
+                          "{lesson.description}"
+                        </p>
+                      </div>
+
+                      <div className="pt-6 border-t border-slate-50 flex items-center justify-between">
+                        <div className="flex -space-x-2">
+                          {lesson.videoUrl && (
+                            <div
+                              className="w-8 h-8 rounded-full bg-rose-500 border-2 border-white flex items-center justify-center text-white"
+                              title="Video Lesson"
+                            >
+                              <Video size={12} />
+                            </div>
+                          )}
+                          {(lesson.attachments?.length > 0 || lesson.filePath) && (
+                            <div
+                              className="w-8 h-8 rounded-full bg-blue-500 border-2 border-white flex items-center justify-center text-white"
+                              title="Documents Attached"
+                            >
+                              <FileIcon size={12} />
+                            </div>
+                          )}
+                          {lesson.externalLinks?.length > 0 && (
+                            <div
+                              className="w-8 h-8 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center text-white"
+                              title="External Resources"
+                            >
+                              <LinkIcon size={12} />
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">
+                            Views
+                          </p>
+                          <p className="text-sm font-black text-slate-900 italic">
+                            {lesson.views.toString().padStart(2, '0')}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {lessons.length === 0 && (
+                    <div className="col-span-full py-32 text-center border-2 border-dashed border-slate-200 rounded-[3.5rem]">
+                      <BookOpen size={48} className="mx-auto text-slate-200 mb-6" />
+                      <p className="text-sm font-black text-slate-400 uppercase tracking-widest italic">
+                        No Learning Sequences Transmitted Yet
+                      </p>
+                      <button
+                        onClick={() => setLessonTab('create')}
+                        className="mt-6 px-10 py-4 bg-blue-950 text-white font-black text-[10px] uppercase tracking-widest rounded-2xl hover:bg-teal-600 transition-all shadow-xl shadow-blue-900/20"
+                      >
+                        INITIALIZE_FIRST_TRANSMISSION
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -932,32 +1640,61 @@ const FacultyDashboard = () => {
                 <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest">
                   Active Links
                 </h3>
-                <div className="w-2 h-2 rounded-full bg-teal-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]"></div>
+                <div
+                  className={`w-2 h-2 rounded-full ${isConnected ? 'bg-teal-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]' : 'bg-slate-300'}`}
+                ></div>
               </div>
               <div className="flex-1 overflow-y-auto p-4 space-y-2">
-                {[
-                  { id: 1, name: 'Research Group A', last: 'Update on syllabus...', time: '2m' },
-                  { id: 2, name: 'Admin Office', last: 'Personnel verified.', time: '1h' },
-                  { id: 3, name: 'John Doe (TA)', last: 'Drafting new event...', time: '4h' },
-                ].map((chat) => (
-                  <button
-                    key={chat.id}
-                    className="w-full flex items-center gap-4 p-4 rounded-2xl hover:bg-white transition-all text-left shadow-sm border border-transparent hover:border-slate-100 group"
+                <button
+                  onClick={() =>
+                    setActiveChat({ id: 'dept-group', name: 'Departmental Forum', type: 'group' })
+                  }
+                  className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all text-left shadow-sm border ${activeChat.id === 'dept-group' ? 'bg-white border-teal-500/20' : 'border-transparent hover:bg-white hover:border-slate-100'} group`}
+                >
+                  <div
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center font-black transition-all shadow-sm ${activeChat.id === 'dept-group' ? 'bg-teal-600 text-white' : 'bg-slate-100 text-teal-600 group-hover:bg-teal-600 group-hover:text-white'}`}
                   >
-                    <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center font-black text-teal-600 group-hover:bg-teal-600 group-hover:text-white transition-all shadow-sm">
-                      {chat.name.charAt(0)}
+                    {user?.department?.charAt(0) || 'D'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h5 className="text-[11px] font-black text-slate-900 uppercase truncate">
+                      {user?.department} Dept
+                    </h5>
+                    <p className="text-[10px] text-slate-400 font-bold truncate tracking-tight">
+                      Group Discussion
+                    </p>
+                  </div>
+                </button>
+
+                <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] px-4 pt-4 pb-2">
+                  Peer Nodes
+                </p>
+                {peers.map((peer) => (
+                  <button
+                    key={peer._id}
+                    onClick={() => {
+                      setActiveChat({
+                        id: peer._id,
+                        name: `${peer.firstName} ${peer.lastName}`,
+                        type: 'private',
+                      });
+                      setMessages([]); // Clear for now or fetch history if available
+                    }}
+                    className={`w-full flex items-center gap-4 p-4 rounded-2xl transition-all text-left shadow-sm border ${activeChat.id === peer._id ? 'bg-white border-teal-500/20' : 'border-transparent hover:bg-white hover:border-slate-100'} group`}
+                  >
+                    <div
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center font-black transition-all shadow-sm ${activeChat.id === peer._id ? 'bg-teal-600 text-white' : 'bg-slate-100 text-teal-600 group-hover:bg-teal-600 group-hover:text-white'}`}
+                    >
+                      {peer.firstName.charAt(0)}
                     </div>
                     <div className="flex-1 min-w-0">
                       <h5 className="text-[11px] font-black text-slate-900 uppercase truncate">
-                        {chat.name}
+                        {peer.firstName} {peer.lastName}
                       </h5>
                       <p className="text-[10px] text-slate-400 font-bold truncate tracking-tight">
-                        {chat.last}
+                        {peer.designation || 'Faculty Member'}
                       </p>
                     </div>
-                    <span className="text-[8px] font-black text-slate-300 uppercase">
-                      {chat.time}
-                    </span>
                   </button>
                 ))}
               </div>
@@ -968,14 +1705,16 @@ const FacultyDashboard = () => {
               <header className="p-6 border-b border-slate-100 bg-white flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-2xl bg-teal-50 border border-teal-100 flex items-center justify-center text-teal-600 text-xl font-black italic shadow-sm">
-                    R
+                    {activeChat.name.charAt(0)}
                   </div>
                   <div>
                     <h4 className="text-sm font-black text-slate-900 uppercase italic tracking-tighter">
-                      Research Forum
+                      {activeChat.name}
                     </h4>
                     <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">
-                      Global Academic Thread • 12 Nodes Active
+                      {activeChat.type === 'group'
+                        ? 'Global Academic Thread • Dept Peers'
+                        : 'Secure Private Connection'}
                     </p>
                   </div>
                 </div>
@@ -985,42 +1724,55 @@ const FacultyDashboard = () => {
               </header>
 
               <div className="flex-1 p-8 overflow-y-auto space-y-6">
-                <div className="flex justify-center mb-10">
-                  <span className="px-4 py-1.5 rounded-full bg-white border border-slate-100 text-[9px] font-black text-slate-400 uppercase tracking-widest">
-                    Yesterday, 14:30 PROTOCOL
-                  </span>
-                </div>
+                {!isConnected && (
+                  <div className="flex justify-center mb-4">
+                    <span className="px-4 py-1.5 rounded-full bg-amber-50 border border-amber-100 text-[9px] font-black text-amber-600 uppercase tracking-widest">
+                      Signal Disconnected • Reconnecting...
+                    </span>
+                  </div>
+                )}
 
-                <div className="flex items-end gap-3 max-w-[80%]">
-                  <div className="w-8 h-8 rounded-lg bg-white border border-slate-200 flex flex-shrink-0 items-center justify-center text-[10px] font-black text-teal-600 shadow-sm">
-                    J
+                {messages.length === 0 && (
+                  <div className="flex flex-col items-center justify-center h-full opacity-40">
+                    <MessageSquare size={48} className="text-slate-200 mb-4" />
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">
+                      No Transmission Logs Detected
+                    </p>
                   </div>
-                  <div className="bg-white px-6 py-4 rounded-t-3xl rounded-br-3xl text-xs text-slate-700 font-medium leading-relaxed border border-slate-100 shadow-sm">
-                    "Initial draft for the Math Olympiad has been published. Please review the
-                    syllabus for the advanced calculus segment."
-                  </div>
-                </div>
+                )}
 
-                <div className="flex items-end gap-3 justify-end ml-auto max-w-[80%]">
-                  <div className="bg-teal-600 px-6 py-4 rounded-t-3xl rounded-bl-3xl text-xs text-white font-medium leading-relaxed shadow-lg shadow-teal-200">
-                    "Acknowledged. Scanning for overlaps with Semester 4 examinations. Will update
-                    registry constraints by EOD."
+                {messages.map((msg, idx) => (
+                  <div
+                    key={idx}
+                    className={`flex items-end gap-3 max-w-[80%] ${msg.senderId === user?._id || msg.senderName === 'You' ? 'ml-auto flex-row-reverse' : ''}`}
+                  >
+                    <div
+                      className={`w-8 h-8 rounded-lg flex flex-shrink-0 items-center justify-center text-[10px] font-black shadow-sm ${msg.senderId === user?._id || msg.senderName === 'You' ? 'bg-teal-600 text-white italic' : 'bg-white border border-slate-200 text-teal-600'}`}
+                    >
+                      {msg.senderName?.charAt(0) || 'U'}
+                    </div>
+                    <div
+                      className={`px-6 py-4 rounded-t-3xl text-xs font-medium leading-relaxed ${msg.senderId === user?._id || msg.senderName === 'You' ? 'bg-teal-600 text-white rounded-bl-3xl shadow-lg shadow-teal-200' : 'bg-white text-slate-700 border border-slate-100 shadow-sm rounded-br-3xl'}`}
+                    >
+                      {activeChat.type === 'group' && msg.senderId !== user?._id && (
+                        <p className="text-[8px] font-black text-teal-600 uppercase mb-1">
+                          {msg.senderName}
+                        </p>
+                      )}
+                      {msg.text}
+                    </div>
                   </div>
-                  <div className="w-8 h-8 rounded-lg bg-teal-600 flex flex-shrink-0 items-center justify-center text-[10px] font-black text-white uppercase italic">
-                    YOU
-                  </div>
-                </div>
+                ))}
               </div>
 
               <div className="p-8 border-t border-slate-100 bg-white">
-                <form
-                  className="relative flex items-center gap-4"
-                  onSubmit={(e) => e.preventDefault()}
-                >
+                <form className="relative flex items-center gap-4" onSubmit={handleSendChat}>
                   <div className="flex-1 relative">
                     <input
                       className="w-full pl-6 pr-12 py-5 rounded-2xl bg-slate-50 border border-slate-100 outline-none focus:ring-2 ring-teal-500 text-xs text-slate-900 font-medium shadow-inner placeholder:text-slate-300 italic"
                       placeholder="Input transmission sequence..."
+                      value={chatInput}
+                      onChange={(e) => setChatInput(e.target.value)}
                     />
                     <div className="absolute right-4 inset-y-0 flex items-center text-slate-400 gap-2">
                       <button
@@ -1031,7 +1783,11 @@ const FacultyDashboard = () => {
                       </button>
                     </div>
                   </div>
-                  <button className="w-14 h-14 bg-teal-600 hover:bg-teal-500 text-white rounded-2xl flex items-center justify-center transition-all shadow-xl shadow-teal-200 active:scale-95">
+                  <button
+                    type="submit"
+                    className="w-14 h-14 bg-teal-600 hover:bg-teal-500 text-white rounded-2xl flex items-center justify-center transition-all shadow-xl shadow-teal-200 active:scale-95 disabled:opacity-50"
+                    disabled={!isConnected || !chatInput.trim()}
+                  >
                     <ChevronRight size={24} />
                   </button>
                 </form>

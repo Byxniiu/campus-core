@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Upload,
   FileText,
@@ -12,66 +12,75 @@ import {
   Waves,
   Anchor,
   Box,
+  Video,
+  ExternalLink,
+  Play,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useStudentAuthStore } from '../../stores/useStudentAuthStore';
+import { studyMaterialAPI } from '../../api/studyMaterial';
+import toast from 'react-hot-toast';
 
 const StudyMaterials = () => {
-  const [isUploading, setIsUploading] = useState(false);
-  const [materials, setMaterials] = useState([
-    {
-      id: 1,
-      name: 'Calculus_CheatSheet.pdf',
-      size: '1.2 MB',
-      type: 'PDF',
-      uploader: 'Dr. Aris',
-      date: 'Jan 24',
-    },
-    {
-      id: 2,
-      name: 'Organic_Chemistry_Notes.docx',
-      size: '850 KB',
-      type: 'DOCX',
-      uploader: 'Sarah Miller',
-      date: 'Jan 22',
-    },
-    {
-      id: 3,
-      name: 'Physics_Formulas_Final.pdf',
-      size: '2.1 MB',
-      type: 'PDF',
-      uploader: 'Prof. Fox',
-      date: 'Jan 20',
-    },
-  ]);
+  const { user } = useStudentAuthStore();
+  const [loading, setLoading] = useState(true);
+  const [materials, setMaterials] = useState([]);
+  const [filters, setFilters] = useState({
+    category: '',
+    subject: '',
+    search: '',
+  });
 
-  const handleFileUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    setIsUploading(true);
-
-    // Simulating a network upload delay
-    setTimeout(() => {
-      const newFile = {
-        id: Date.now(),
-        name: file.name,
-        size: (file.size / 1024 / 1024).toFixed(1) + ' MB',
-        type: file.name.split('.').pop().toUpperCase(),
-        uploader: 'You',
-        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+  const fetchMaterials = useCallback(async () => {
+    setLoading(true);
+    try {
+      // Fetch materials for current student's department and semester
+      const params = {
+        department: user?.department,
+        semester: user?.semester,
+        category: filters.category || undefined,
+        subject: filters.subject || undefined,
       };
-      setMaterials([newFile, ...materials]);
-      setIsUploading(false);
-    }, 1500);
+
+      const response = await studyMaterialAPI.getAll(params);
+      if (response.success) {
+        let data = response.data.materials;
+
+        // Manual search filter if needed
+        if (filters.search) {
+          data = data.filter(
+            (m) =>
+              m.title.toLowerCase().includes(filters.search.toLowerCase()) ||
+              m.subject.toLowerCase().includes(filters.search.toLowerCase())
+          );
+        }
+
+        setMaterials(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch materials:', error);
+      toast.error('Failed to load study materials');
+    } finally {
+      setLoading(false);
+    }
+  }, [user, filters.category, filters.subject, filters.search]);
+
+  useEffect(() => {
+    fetchMaterials();
+  }, [fetchMaterials]);
+
+  const handleDownload = (id, fileIndex = 0) => {
+    const url = studyMaterialAPI.getDownloadUrl(id, fileIndex);
+    window.open(url, '_blank');
   };
 
   return (
-    <div className="min-h-screen bg-[#F0F9FF] p-8 md:p-16 font-jakarta relative overflow-hidden">
-      {/* Background Decor */}
+    <div className="min-h-screen bg-slate-50 p-6 md:p-12 relative overflow-hidden">
+      {/* Background Decorations */}
       <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-teal-100/20 rounded-full blur-[120px] -z-0"></div>
       <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-blue-100/20 rounded-full blur-[100px] -z-0"></div>
 
-      <div className="max-w-6xl mx-auto relative z-10">
+      <div className="max-w-7xl mx-auto relative z-10">
         {/* Breadcrumb / Back */}
         <Link
           to="/"
@@ -89,194 +98,272 @@ const StudyMaterials = () => {
                 <FileText size={20} className="text-teal-400" />
               </div>
               <span className="text-[10px] font-bold text-blue-900/30 uppercase tracking-[0.2em]">
-                Institutional Knowledge Base
+                {user?.department} Sector Base • Semester {user?.semester}
               </span>
             </div>
             <h1 className="text-7xl font-outfit font-bold tracking-tight text-blue-950 leading-none">
-              Study <span className="text-teal-500">Materials</span>
+              Scholarship <span className="text-teal-500">Assets</span>
             </h1>
             <p className="text-blue-950/60 text-lg font-medium mt-6 max-w-lg leading-relaxed">
-              Access verified academic assets and shared intelligence from throughout the
-              institutional network.
+              Synthesized knowledge assets and verified academic intelligence from your department.
             </p>
           </div>
 
-          <label className="cursor-pointer group">
-            <div className="flex items-center gap-4 bg-blue-950 text-white px-10 py-5 rounded-[24px] font-bold text-[11px] uppercase tracking-[0.2em] hover:bg-teal-600 transition-all shadow-2xl shadow-teal-100/50 active:scale-[0.98]">
-              <Upload
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="relative group">
+              <Search
+                className="absolute left-6 top-1/2 -translate-y-1/2 text-blue-900/40 group-focus-within:text-teal-500 transition-colors"
                 size={18}
-                className="text-teal-400 group-hover:-translate-y-1 transition-transform"
               />
-              <span>Initialize Asset Upload</span>
+              <input
+                type="text"
+                placeholder="Search assets..."
+                className="pl-16 pr-8 py-5 rounded-[24px] bg-white border border-blue-900/5 outline-none focus:ring-2 ring-teal-500 text-sm font-bold text-blue-950 placeholder:text-blue-900/20 shadow-xl shadow-teal-100/20 w-full md:w-[300px]"
+                value={filters.search}
+                onChange={(e) => setFilters({ ...filters, search: e.target.value })}
+              />
             </div>
-            <input
-              type="file"
-              className="hidden"
-              onChange={handleFileUpload}
-              disabled={isUploading}
-            />
-          </label>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-          {/* Main List Section */}
-          <div className="lg:col-span-2 space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-12">
+          {/* Sidebar Filters */}
+          <aside className="lg:col-span-1 space-y-10">
+            <div className="bg-white p-8 rounded-[40px] border border-blue-900/5 shadow-2xl shadow-teal-100/30">
+              <h3 className="text-xs font-black text-blue-950 uppercase tracking-[0.2em] mb-8 border-b border-blue-50 pb-6">
+                Asset Classification
+              </h3>
+              <div className="space-y-3">
+                {[
+                  { id: '', label: 'All Resources', icon: <Box size={14} /> },
+                  { id: 'notes', label: 'Academic Notes', icon: <FileText size={14} /> },
+                  { id: 'video-lesson', label: 'Video Lessons', icon: <Video size={14} /> },
+                  { id: 'assignment', label: 'Assignments', icon: <Play size={14} /> },
+                  { id: 'reference', label: 'Reference Mat', icon: <Anchor size={14} /> },
+                ].map((cat) => (
+                  <button
+                    key={cat.id}
+                    onClick={() => setFilters({ ...filters, category: cat.id })}
+                    className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all group ${filters.category === cat.id ? 'bg-blue-950 text-white shadow-xl shadow-blue-900/40' : 'hover:bg-blue-50 text-blue-900/60'}`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <span
+                        className={`${filters.category === cat.id ? 'text-teal-400' : 'text-blue-950'} transition-colors`}
+                      >
+                        {cat.icon}
+                      </span>
+                      <span className="text-[10px] font-black uppercase tracking-widest">
+                        {cat.label}
+                      </span>
+                    </div>
+                    {filters.category === cat.id && (
+                      <div className="w-1.5 h-1.5 rounded-full bg-teal-400"></div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-blue-950 to-blue-900 p-8 rounded-[40px] text-white shadow-2xl shadow-blue-500/20 relative overflow-hidden group">
+              <HardDrive className="absolute -right-8 -bottom-8 w-40 h-40 text-white/5 rotate-12" />
+              <div className="relative z-10">
+                <Shield className="text-teal-400 mb-6" size={32} />
+                <h4 className="text-xl font-bold tracking-tight mb-3">Institutional Integrity</h4>
+                <p className="text-[10px] text-white/60 font-medium leading-relaxed uppercase tracking-widest italic">
+                  All assets are verified by the department faculty and encrypted for academic
+                  security.
+                </p>
+              </div>
+            </div>
+          </aside>
+
+          {/* Main Repository Section */}
+          <div className="lg:col-span-3 space-y-8">
             <div className="flex items-center justify-between px-4">
               <h2 className="text-sm font-bold text-blue-950/40 uppercase tracking-[0.2em] flex items-center gap-3">
-                <Box size={14} className="text-teal-500" /> Institutional Repository
+                <Waves size={14} className="text-teal-500" /> Department Stream
               </h2>
-              <div className="flex items-center gap-2 text-[10px] font-bold text-teal-600 uppercase tracking-widest bg-teal-50 border border-teal-100 px-5 py-2.5 rounded-full shadow-sm">
-                <Check size={12} /> {materials.length} Verified Assets
+              <div className="text-[10px] font-bold text-teal-600 uppercase tracking-widest bg-teal-50 border border-teal-100 px-5 py-2.5 rounded-full">
+                {materials.length} ASSETS_SYNCED
               </div>
             </div>
 
-            {isUploading && (
-              <div className="bg-white p-8 rounded-[32px] border-2 border-dashed border-teal-100 flex items-center justify-between animate-pulse shadow-inner">
-                <div className="flex items-center space-x-6">
-                  <div className="w-14 h-14 bg-blue-50 rounded-[20px] flex items-center justify-center border border-teal-50 shadow-inner">
-                    <Upload className="text-blue-950" size={24} />
+            {loading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {[1, 2, 3, 4].map((i) => (
+                  <div
+                    key={i}
+                    className="bg-white p-8 rounded-[40px] animate-pulse h-[250px] border border-blue-50"
+                  ></div>
+                ))}
+              </div>
+            ) : materials.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {materials.map((asset) => (
+                  <div
+                    key={asset._id}
+                    className="group bg-white p-10 rounded-[40px] border border-blue-900/5 hover:border-teal-500/30 transition-all duration-500 shadow-sm hover:shadow-2xl relative flex flex-col"
+                  >
+                    <div className="absolute top-8 right-8">
+                      <span className="text-[8px] font-black px-3 py-1 bg-blue-50 text-blue-950 rounded-full uppercase tracking-widest italic border border-blue-100">
+                        {asset.category}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-6 mb-8">
+                      <div
+                        className={`w-16 h-16 rounded-3xl flex items-center justify-center shadow-inner ${
+                          asset.resourceType === 'video'
+                            ? 'bg-rose-50 text-rose-500'
+                            : asset.resourceType === 'document'
+                              ? 'bg-blue-50 text-blue-500'
+                              : 'bg-emerald-50 text-emerald-500'
+                        }`}
+                      >
+                        {asset.resourceType === 'video' ? (
+                          <Video size={28} />
+                        ) : asset.resourceType === 'document' ? (
+                          <FileText size={28} />
+                        ) : (
+                          <ExternalLink size={28} />
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-black text-teal-600 uppercase tracking-[0.2em] mb-1 italic font-mono">
+                          {asset.subject}
+                        </p>
+                        <h3 className="text-2xl font-bold tracking-tight text-blue-950 line-clamp-1 group-hover:text-teal-600 transition-colors">
+                          {asset.title}
+                        </h3>
+                      </div>
+                    </div>
+
+                    <p className="text-blue-950/50 text-xs font-medium leading-relaxed italic mb-8 flex-1">
+                      "{asset.description}"
+                    </p>
+
+                    <div className="space-y-4">
+                      {asset.resourceType === 'video' && asset.videoUrl && (
+                        <a
+                          href={asset.videoUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="w-full flex items-center justify-between p-5 bg-rose-50 text-rose-600 rounded-3xl hover:bg-rose-100 transition-all group/link"
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 bg-rose-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-rose-200 group-hover/link:scale-110 transition-transform">
+                              <Play size={18} fill="currentColor" />
+                            </div>
+                            <span className="text-[11px] font-black uppercase tracking-widest">
+                              Access Video Lecture
+                            </span>
+                          </div>
+                          <ExternalLink size={16} className="opacity-40" />
+                        </a>
+                      )}
+
+                      {(asset.attachments?.length > 0 || asset.filePath) && (
+                        <div className="space-y-2">
+                          {(asset.attachments && asset.attachments.length > 0
+                            ? asset.attachments
+                            : [
+                                {
+                                  filename: asset.filename,
+                                  path: asset.filePath,
+                                  size: asset.fileSize,
+                                },
+                              ]
+                          ).map((file, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => handleDownload(asset._id, idx)}
+                              className="w-full flex items-center justify-between p-5 bg-blue-50 text-blue-900 rounded-3xl hover:bg-teal-600 hover:text-white transition-all group/btn shadow-sm"
+                            >
+                              <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 bg-blue-900 group-hover/btn:bg-white/20 rounded-2xl flex items-center justify-center text-white group-hover/btn:text-white transition-all">
+                                  <Download size={18} />
+                                </div>
+                                <div className="text-left">
+                                  <span className="text-[10px] font-black uppercase tracking-widest block">
+                                    {file.filename || 'Academic_Asset'}
+                                  </span>
+                                  <span className="text-[8px] font-bold opacity-40 uppercase">
+                                    {file.size ? (file.size / 1024 / 1024).toFixed(2) : '0.00'} MB •{' '}
+                                    {file.mimeType?.split('/')[1]?.toUpperCase() || 'FILE'}
+                                  </span>
+                                </div>
+                              </div>
+                              <HardDrive size={16} className="opacity-20" />
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {asset.externalLinks?.length > 0 && (
+                        <div className="space-y-2">
+                          {asset.externalLinks.map((link, idx) => (
+                            <a
+                              key={idx}
+                              href={link.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="w-full flex items-center justify-between p-5 bg-emerald-50 text-emerald-700 rounded-3xl hover:bg-emerald-100 transition-all group/link"
+                            >
+                              <div className="flex items-center gap-4">
+                                <div className="w-10 h-10 bg-emerald-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-200 group-hover/link:scale-110 transition-transform">
+                                  <ExternalLink size={18} />
+                                </div>
+                                <span className="text-[11px] font-black uppercase tracking-widest">
+                                  {link.title || 'Intel Link'}
+                                </span>
+                              </div>
+                              <ChevronLeft size={16} className="rotate-180 opacity-40" />
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="mt-8 pt-8 border-t border-blue-50 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-blue-950 flex items-center justify-center text-[10px] font-black text-teal-400 italic">
+                          {asset.uploadedBy?.firstName?.charAt(0) || 'F'}
+                        </div>
+                        <div>
+                          <p className="text-[8px] font-black text-blue-950 uppercase tracking-widest">
+                            Uploader
+                          </p>
+                          <p className="text-[10px] font-bold text-blue-950/40 uppercase">
+                            {asset.uploadedBy?.firstName} {asset.uploadedBy?.lastName}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[8px] font-black text-blue-950 uppercase tracking-widest">
+                          Transmitted
+                        </p>
+                        <p className="text-[10px] font-bold text-blue-950/40 uppercase">
+                          {new Date(asset.createdAt).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                          })}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <div className="h-4 w-48 bg-blue-50/50 rounded-full"></div>
-                    <div className="h-3 w-32 bg-blue-50/20 rounded-full"></div>
-                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="py-32 bg-white rounded-[40px] border border-blue-900/5 text-center shadow-xl shadow-teal-100/20">
+                <div className="w-24 h-24 bg-blue-50 rounded-[40px] flex items-center justify-center mx-auto mb-8">
+                  <Box size={40} className="text-blue-900/20" />
                 </div>
-                <span className="text-[10px] font-bold text-blue-950/30 uppercase tracking-widest animate-bounce">
-                  Encrypting Upload...
-                </span>
+                <h3 className="text-2xl font-bold text-blue-950 mb-2">Repository Empty</h3>
+                <p className="text-blue-950/40 text-sm font-medium uppercase tracking-[0.2em] italic">
+                  No scholarship assets detected in current stream
+                </p>
               </div>
             )}
-
-            {materials.map((file) => (
-              <div
-                key={file.id}
-                className="group bg-white p-8 rounded-[40px] border border-teal-50 shadow-2xl shadow-teal-100/50 hover:shadow-teal-200/30 hover:border-teal-300 transition-all duration-500 flex items-center justify-between relative overflow-hidden"
-              >
-                <div className="absolute top-0 right-0 w-32 h-32 bg-teal-50/30 rounded-full blur-3xl -z-0"></div>
-
-                <div className="flex items-center space-x-6 relative z-10">
-                  <div
-                    className={`w-16 h-16 rounded-[24px] flex items-center justify-center border transition-all duration-500 group-hover:rotate-6 shadow-inner ${
-                      file.type === 'PDF'
-                        ? 'bg-blue-950 border-blue-900 text-teal-400'
-                        : 'bg-blue-50 border-teal-50 text-blue-950'
-                    }`}
-                  >
-                    <FileText size={28} />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-blue-950 group-hover:text-teal-600 transition-colors tracking-tight">
-                      {file.name}
-                    </h3>
-                    <div className="flex items-center gap-3 mt-2">
-                      <span className="text-[10px] font-bold text-teal-500 uppercase tracking-widest bg-teal-50 px-2.5 py-1 rounded-md border border-teal-100 shadow-sm">
-                        {file.size}
-                      </span>
-                      <div className="w-1 h-1 bg-teal-200 rounded-full"></div>
-                      <p className="text-[10px] font-bold text-blue-950/40 uppercase tracking-widest">
-                        By <span className="text-blue-950 font-bold">{file.uploader}</span>
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-6 relative z-10">
-                  <span className="text-[10px] font-bold text-blue-950/20 uppercase tracking-[0.2em] hidden md:block">
-                    {file.date}
-                  </span>
-                  <button className="p-4 bg-blue-50/50 text-blue-950 rounded-2xl border border-teal-50 hover:bg-teal-600 hover:text-white transition-all shadow-inner group/dl">
-                    <Download
-                      size={20}
-                      className="group-hover/dl:translate-y-0.5 transition-transform"
-                    />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Sidebar - Quick Stats & Info */}
-          <div className="space-y-10">
-            <div className="bg-blue-950 rounded-[40px] p-10 text-white shadow-2xl shadow-teal-900/10 relative overflow-hidden">
-              <div className="relative z-10">
-                <div className="flex items-center justify-between mb-10">
-                  <h3 className="text-3xl font-outfit font-bold tracking-tight">Core Quota</h3>
-                  <HardDrive className="text-teal-400" size={24} />
-                </div>
-                <div className="space-y-8">
-                  <div>
-                    <div className="flex justify-between items-center mb-4 text-[12px]">
-                      <span className="font-bold text-blue-200 uppercase tracking-widest">
-                        Storage Utilization
-                      </span>
-                      <span className="font-bold text-teal-400 uppercase tracking-widest italic">
-                        45% Used
-                      </span>
-                    </div>
-                    <div className="h-3 bg-blue-900/50 rounded-full overflow-hidden p-0.5 border border-blue-800">
-                      <div
-                        className="h-full bg-teal-400 rounded-full shadow-[0_0_15px_rgba(45,212,191,0.4)]"
-                        style={{ width: '45%' }}
-                      ></div>
-                    </div>
-                  </div>
-                  <p className="text-blue-100/40 text-[11px] font-medium leading-relaxed italic">
-                    Institutional allocation resets every semester. Please compress large assets to
-                    optimize shared storage.
-                  </p>
-                </div>
-              </div>
-              {/* Background Decoration */}
-              <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-teal-400/5 rounded-full blur-3xl"></div>
-              <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')] opacity-10 pointer-events-none"></div>
-            </div>
-
-            <div className="bg-white rounded-[40px] p-10 border border-teal-50 shadow-xl shadow-teal-100/10 relative overflow-hidden">
-              <div className="flex items-center gap-3 mb-10">
-                <div className="p-2.5 bg-blue-50 rounded-xl shadow-inner">
-                  <Info className="text-teal-600" size={20} />
-                </div>
-                <h4 className="font-outfit text-3xl font-bold text-blue-950 tracking-tight">
-                  Directives
-                </h4>
-              </div>
-              <ul className="space-y-8">
-                {[
-                  {
-                    label: 'Authorized Extensions',
-                    desc: 'PDF, DOCX, XLSX are supported within the repository.',
-                    icon: <FileText size={14} />,
-                  },
-                  {
-                    label: 'Sync Protocol',
-                    desc: 'Connect assets with active learning modules.',
-                    icon: <Waves size={14} />,
-                  },
-                  {
-                    label: 'Security Check',
-                    desc: 'All assets are indexed and verified for security.',
-                    icon: <Shield size={14} />,
-                  },
-                ].map((item) => (
-                  <li key={item.label} className="flex items-start gap-4 group">
-                    <div className="w-8 h-8 bg-blue-50 text-blue-950 rounded-xl border border-teal-50 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-inner transition-colors group-hover:bg-teal-400 group-hover:text-white">
-                      {item.icon}
-                    </div>
-                    <div>
-                      <p className="text-[11px] font-bold text-blue-950 uppercase tracking-[0.1em] mb-1.5">
-                        {item.label}
-                      </p>
-                      <p className="text-xs text-blue-950/40 font-medium leading-relaxed">
-                        {item.desc}
-                      </p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-              <div className="mt-12 pt-10 border-t border-teal-50 flex justify-center">
-                <Anchor className="text-teal-100/50 rotate-45" size={48} />
-              </div>
-            </div>
           </div>
         </div>
       </div>

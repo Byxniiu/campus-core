@@ -32,7 +32,7 @@ const StaffHomepage = () => {
       setLoading(true);
       const res = await helpRequestAPI.getMyRequests();
       if (res.success) {
-        setRequests(res.data);
+        setRequests(res.data.requests || []);
       }
     } catch (error) {
       console.error('Fetch error:', error);
