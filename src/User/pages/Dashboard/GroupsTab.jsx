@@ -13,6 +13,7 @@ import {
   Send,
   X,
   ArrowLeft,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { groupsAPI } from '../../../api/groups';
@@ -157,6 +158,32 @@ const GroupsTab = () => {
     setChatInput('');
   };
 
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !socket || !isConnected) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const loadingToast = toast.loading('Uploading image...');
+    try {
+      const res = await groupsAPI.uploadChatImage(formData);
+      if (res.success) {
+        const imageUrl = res.data.url;
+        socket.emit('faculty:group-message', {
+          groupId: activeGroupId,
+          content: 'Sent an image',
+          messageType: 'image',
+          imageUrl,
+        });
+        toast.success('Image shared', { id: loadingToast });
+      }
+    } catch (err) {
+      console.error('[GroupsTab] Upload failed:', err);
+      toast.error('Failed to upload image', { id: loadingToast });
+    }
+  };
+
   const handleInputChange = (e) => {
     setChatInput(e.target.value);
     if (socket && isConnected) {
@@ -179,10 +206,10 @@ const GroupsTab = () => {
               <ArrowLeft size={20} />
             </button>
             <div>
-              <h3 className="text-lg font-outfit font-bold uppercase tracking-tight">
+              <h3 className="text-xl font-outfit font-bold uppercase tracking-tight">
                 {activeGroup?.name}
               </h3>
-              <p className="text-[10px] font-bold text-teal-400 uppercase tracking-widest">
+              <p className="text-[11px] font-bold text-teal-400 uppercase tracking-widest">
                 Led by Faculty • {activeGroup?.members?.length || 0} Members
               </p>
             </div>
@@ -224,9 +251,14 @@ const GroupsTab = () => {
                   className={`flex flex-col ${isMine ? 'items-end' : 'items-start'}`}
                 >
                   {!isMine && (
-                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1 ml-4">
-                      {msg.sender?.firstName} {msg.sender?.lastName} •{' '}
-                      {msg.sender?.role === 'faculty' ? 'Faculty' : 'Student'}
+                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-4 flex items-center gap-1.5">
+                      {msg.sender?.firstName} {msg.sender?.lastName}
+                      {activeGroup?.creator?._id === msg.sender?._id && (
+                        <span className="px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded-[4px] text-[8px] font-black normal-case">
+                          Admin
+                        </span>
+                      )}
+                      • {msg.sender?.role === 'faculty' ? 'Faculty' : 'Student'}
                     </span>
                   )}
                   <div
@@ -236,7 +268,23 @@ const GroupsTab = () => {
                         : 'bg-white text-blue-950 border border-teal-50 rounded-tl-none'
                     }`}
                   >
-                    {msg.content}
+                    {msg.messageType === 'image' ? (
+                      <div className="space-y-2">
+                        <img
+                          src={`http://localhost:3000${msg.imageUrl}`}
+                          className="max-w-full rounded-2xl border border-white/10 cursor-pointer hover:opacity-90 transition-opacity"
+                          alt="shared"
+                          onClick={() =>
+                            window.open(`http://localhost:3000${msg.imageUrl}`, '_blank')
+                          }
+                        />
+                        {msg.content && msg.content !== 'Sent an image' && (
+                          <p className="mt-1">{msg.content}</p>
+                        )}
+                      </div>
+                    ) : (
+                      msg.content
+                    )}
                   </div>
                   <span className="text-[8px] font-bold text-slate-300 mt-1 uppercase tracking-tighter">
                     {new Date(msg.createdAt).toLocaleTimeString([], {
@@ -273,8 +321,24 @@ const GroupsTab = () => {
         </div>
 
         {/* Input Area */}
-        <form onSubmit={sendMessage} className="p-6 bg-white border-t border-teal-50">
-          <div className="flex gap-4 p-2 bg-slate-50 rounded-3xl border border-slate-100 focus-within:ring-4 ring-teal-500/10 transition-all">
+        <form
+          onSubmit={sendMessage}
+          className="p-6 bg-white border-t border-teal-50 flex items-center gap-2"
+        >
+          <input
+            type="file"
+            id="student-chat-image-upload"
+            className="hidden"
+            accept="image/*"
+            onChange={handleImageUpload}
+          />
+          <label
+            htmlFor="student-chat-image-upload"
+            className="w-12 h-12 flex-shrink-0 bg-slate-50 hover:bg-teal-50 text-slate-400 hover:text-teal-600 rounded-2xl flex items-center justify-center cursor-pointer transition-all border border-slate-100"
+          >
+            <ImageIcon size={20} />
+          </label>
+          <div className="flex-1 flex gap-4 p-2 bg-slate-50 rounded-3xl border border-slate-100 focus-within:ring-4 ring-teal-500/10 transition-all">
             <input
               placeholder="Inject message into the grid..."
               className="flex-1 bg-transparent px-4 py-2 outline-none text-sm font-bold text-blue-950 placeholder:text-slate-300"

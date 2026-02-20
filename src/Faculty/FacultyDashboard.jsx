@@ -79,7 +79,9 @@ const FacultyDashboard = () => {
   const [groups, setGroups] = useState([]);
   const [activeChat, setActiveChat] = useState('dept'); // 'dept' or 'group'
   const [selectedGroupId, setSelectedGroupId] = useState(null);
+  const [activeGroup, setActiveGroup] = useState(null);
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
+  const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
   const [eligibleStudents, setEligibleStudents] = useState([]);
   const [groupForm, setGroupForm] = useState({ name: '', members: [] });
 
@@ -378,6 +380,41 @@ const FacultyDashboard = () => {
     setChatInput('');
   };
 
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !socket || !isConnected) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const loadingToast = toast.loading('Uploading image...');
+    try {
+      const res = await groupsAPI.uploadChatImage(formData);
+      if (res.success) {
+        const imageUrl = res.data.url;
+        if (activeChat === 'dept') {
+          socket.emit('faculty:dept-message', {
+            content: 'Sent an image',
+            messageType: 'image',
+            imageUrl,
+            department: user?.department,
+          });
+        } else {
+          socket.emit('faculty:group-message', {
+            groupId: selectedGroupId,
+            content: 'Sent an image',
+            messageType: 'image',
+            imageUrl,
+          });
+        }
+        toast.success('Image shared', { id: loadingToast });
+      }
+    } catch (err) {
+      console.error('[chat] Upload failed:', err);
+      toast.error('Failed to upload image', { id: loadingToast });
+    }
+  };
+
   const handleSwitchChat = async (type, id = null) => {
     setActiveChat(type);
     setSelectedGroupId(id);
@@ -388,11 +425,13 @@ const FacultyDashboard = () => {
       if (type === 'dept') {
         fetchDeptChatHistory();
         fetchDeptMembers();
+        setActiveGroup(null);
       } else {
         const res = await groupsAPI.getGroupHistory(id);
         if (res.success) {
           setChatMessages(res.data.messages || []);
           setChatMembers(res.data.group.members || []);
+          setActiveGroup(res.data.group);
           socket?.emit('faculty:join-group', { groupId: id });
         }
       }
@@ -401,6 +440,34 @@ const FacultyDashboard = () => {
       toast.error('Failed to load messages');
     } finally {
       setChatLoading(false);
+    }
+  };
+
+  const handleRemoveMember = async (userId) => {
+    if (!window.confirm('Are you sure you want to remove this member?')) return;
+    try {
+      const res = await groupsAPI.removeGroupMember(selectedGroupId, userId);
+      if (res.success) {
+        toast.success('Member removed');
+        setChatMembers(res.data.group.members);
+        setActiveGroup(res.data.group);
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to remove member');
+    }
+  };
+
+  const handleAddMembers = async (selectedIds) => {
+    try {
+      const res = await groupsAPI.addGroupMembers(selectedGroupId, selectedIds);
+      if (res.success) {
+        toast.success(`${selectedIds.length} members added`);
+        setChatMembers(res.data.group.members);
+        setActiveGroup(res.data.group);
+        setIsAddMemberModalOpen(false);
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to add members');
     }
   };
 
@@ -818,10 +885,10 @@ const FacultyDashboard = () => {
 
       <div className="flex items-center gap-6">
         <div className="text-right hidden md:block">
-          <p className="text-xs font-black text-blue-900 uppercase tracking-tight">
+          <p className="text-sm font-black text-blue-900 uppercase tracking-tight">
             {user?.firstName} {user?.lastName}
           </p>
-          <p className="text-[9px] text-teal-600 font-bold uppercase tracking-widest">
+          <p className="text-[10px] text-teal-600 font-bold uppercase tracking-widest">
             {user?.department} Department
           </p>
         </div>
@@ -1738,8 +1805,14 @@ const FacultyDashboard = () => {
                         {/* Bubble */}
                         <div className="flex flex-col gap-1 min-w-0">
                           {!isMine && (
-                            <span className="text-[8px] font-black text-slate-400 uppercase tracking-[0.15em] ml-1">
+                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.12em] ml-1 flex items-center gap-1">
                               {msg.sender?.firstName} {msg.sender?.lastName}
+                              {activeChat === 'group' &&
+                                activeGroup?.creator?._id === msg.sender?._id && (
+                                  <span className="px-1.5 py-0.5 bg-amber-100 text-amber-800 rounded-[4px] text-[8px] font-black uppercase">
+                                    Admin
+                                  </span>
+                                )}
                             </span>
                           )}
                           <div
@@ -1749,7 +1822,23 @@ const FacultyDashboard = () => {
                                 : 'bg-slate-50 text-slate-800 border border-slate-100 rounded-br-2xl'
                             }`}
                           >
-                            {msg.content}
+                            {msg.messageType === 'image' ? (
+                              <div className="space-y-2">
+                                <img
+                                  src={`http://localhost:3000${msg.imageUrl}`}
+                                  className="max-w-full rounded-xl border border-white/20 shadow-sm cursor-pointer hover:opacity-90 transition-opacity"
+                                  alt="shared"
+                                  onClick={() =>
+                                    window.open(`http://localhost:3000${msg.imageUrl}`, '_blank')
+                                  }
+                                />
+                                {msg.content && msg.content !== 'Sent an image' && (
+                                  <p className="mt-1">{msg.content}</p>
+                                )}
+                              </div>
+                            ) : (
+                              msg.content
+                            )}
                           </div>
                           <span
                             className={`text-[8px] text-slate-400 font-bold ${isMine ? 'text-right' : ''}`}
@@ -1785,6 +1874,19 @@ const FacultyDashboard = () => {
                 {/* ── Input Bar ──────────────────────────────────────────── */}
                 <div className="p-5 border-t border-slate-100 bg-white">
                   <form onSubmit={handleSendMessage} className="flex items-center gap-3">
+                    <input
+                      type="file"
+                      id="chat-image-upload"
+                      className="hidden"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                    />
+                    <label
+                      htmlFor="chat-image-upload"
+                      className="w-12 h-12 flex-shrink-0 bg-slate-50 hover:bg-slate-100 text-slate-400 rounded-2xl flex items-center justify-center cursor-pointer transition-all border border-slate-100"
+                    >
+                      <ImageIcon size={20} />
+                    </label>
                     <div className="flex-1 relative">
                       <input
                         className="w-full pl-5 pr-16 py-4 rounded-2xl bg-slate-50 border border-slate-100 outline-none focus:ring-2 ring-teal-400 text-sm text-slate-800 font-medium placeholder:text-slate-300 transition-all"
@@ -1818,12 +1920,26 @@ const FacultyDashboard = () => {
               {/* ── Members Sidebar ─────────────────────────────────────── */}
               <aside className="w-64 flex-shrink-0 bg-white border border-slate-200 rounded-[2.5rem] p-5 flex flex-col gap-4 shadow-sm overflow-hidden">
                 <div className="flex items-center justify-between px-1">
-                  <h4 className="text-[9px] font-black text-slate-900 uppercase tracking-widest">
+                  <h4 className="text-[11px] font-black text-slate-900 uppercase tracking-widest">
                     Members
                   </h4>
-                  <span className="bg-teal-50 text-teal-600 border border-teal-100 text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">
-                    {chatMembers.length}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {activeChat === 'group' &&
+                      activeGroup?.creator?._id === (user?._id || user?.id) && (
+                        <button
+                          onClick={() => {
+                            fetchEligibleStudents();
+                            setIsAddMemberModalOpen(true);
+                          }}
+                          className="w-6 h-6 flex items-center justify-center bg-teal-50 text-teal-600 rounded-lg hover:bg-teal-100 transition-colors"
+                        >
+                          <Plus size={14} />
+                        </button>
+                      )}
+                    <span className="bg-teal-50 text-teal-600 border border-teal-100 text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest">
+                      {chatMembers.length}
+                    </span>
+                  </div>
                 </div>
                 <div className="flex-1 overflow-y-auto space-y-2 pr-1">
                   {chatMembers.map((member) => {
@@ -1856,16 +1972,35 @@ const FacultyDashboard = () => {
                           />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-[10px] font-black text-slate-900 truncate leading-tight">
+                          <p className="text-[13px] font-black text-slate-900 truncate leading-tight">
                             {member.firstName} {member.lastName}
-                            {isSelf && <span className="ml-1 text-teal-500 text-[8px]">(you)</span>}
+                            {isSelf && (
+                              <span className="ml-1 text-teal-500 text-[10px]">(you)</span>
+                            )}
+                            {activeChat === 'group' && activeGroup?.creator?._id === member._id && (
+                              <span className="ml-1 px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[9px] font-black rounded tracking-widest uppercase">
+                                Admin
+                              </span>
+                            )}
                           </p>
-                          <p className="text-[8px] text-slate-400 font-bold uppercase tracking-wide truncate">
+                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wide truncate">
                             {member.role === 'student'
                               ? 'Student'
                               : member.designation || 'Faculty'}
                           </p>
                         </div>
+
+                        {/* Remove Action */}
+                        {activeChat === 'group' &&
+                          activeGroup?.creator?._id === (user?._id || user?.id) &&
+                          !isSelf && (
+                            <button
+                              onClick={() => handleRemoveMember(member._id)}
+                              className="ml-auto opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center bg-rose-50 text-rose-500 rounded-lg hover:bg-rose-100 transition-all"
+                            >
+                              <Plus size={12} className="rotate-45" />
+                            </button>
+                          )}
                       </div>
                     );
                   })}
@@ -1988,6 +2123,81 @@ const FacultyDashboard = () => {
                       {loading ? 'SYNCHRONIZING...' : 'ACTIVATE COMMUNICATION GROUP'}
                     </button>
                   </form>
+                </div>
+              </div>
+            )}
+
+            {isAddMemberModalOpen && (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+                <div className="w-full max-w-lg bg-white rounded-[3rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+                  <header className="p-8 bg-slate-900 text-white flex items-center justify-between">
+                    <div>
+                      <h3 className="text-2xl font-black uppercase italic tracking-tighter">
+                        Enlist <span className="text-teal-400">Personnel</span>
+                      </h3>
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">
+                        Add students to #{activeGroup?.name}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setIsAddMemberModalOpen(false)}
+                      className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-all"
+                    >
+                      <Plus size={20} className="rotate-45" />
+                    </button>
+                  </header>
+
+                  <div className="p-8 space-y-6">
+                    <div className="space-y-4">
+                      <div className="max-h-60 overflow-y-auto pr-2 space-y-2 custom-scrollbar">
+                        {eligibleStudents
+                          .filter((s) => !chatMembers.some((m) => m._id === s._id))
+                          .map((student) => {
+                            return (
+                              <button
+                                key={student._id}
+                                type="button"
+                                onClick={() => handleAddMembers([student._id])}
+                                className="w-full flex items-center gap-3 p-3 rounded-2xl border bg-white border-slate-100 hover:border-teal-300 hover:bg-teal-50 transition-all"
+                              >
+                                <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center overflow-hidden">
+                                  {student.avatar ? (
+                                    <img
+                                      src={`http://localhost:3000${student.avatar}`}
+                                      className="w-full h-full object-cover"
+                                      alt=""
+                                    />
+                                  ) : (
+                                    <span className="text-[10px] font-black text-slate-400">
+                                      {student.firstName[0]}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-left flex-1 min-w-0">
+                                  <p className="text-[10px] font-black text-slate-900 truncate">
+                                    {student.firstName} {student.lastName}
+                                  </p>
+                                  <p className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">
+                                    ID: {student.studentId || 'N/A'}
+                                  </p>
+                                </div>
+                                <div className="w-8 h-8 rounded-xl bg-teal-100 text-teal-600 flex items-center justify-center">
+                                  <Plus size={14} />
+                                </div>
+                              </button>
+                            );
+                          })}
+                        {eligibleStudents.filter((s) => !chatMembers.some((m) => m._id === s._id))
+                          .length === 0 && (
+                          <div className="py-10 text-center opacity-40">
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest italic">
+                              No more eligible students found
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
