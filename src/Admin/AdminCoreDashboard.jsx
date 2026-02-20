@@ -23,7 +23,8 @@ import AddCounselorModal from './AddCounselorModal';
 import AddStaffModal from './AddStaffModal';
 import AcceptanceModal from '../Counselors/AcceptanceModal';
 import { counselingAPI } from '../api/counseling';
-import { Calendar, Clock, Plus } from 'lucide-react';
+import { Calendar, Clock, Plus, User as UserIcon } from 'lucide-react';
+import ProfileManager from '../components/profile/ProfileManager';
 
 const AdminCoreDashboard = () => {
   const navigate = useNavigate();
@@ -111,6 +112,11 @@ const AdminCoreDashboard = () => {
         case 'timetables':
           response = await timetableAPI.getAllTimetables();
           break;
+        case 'profile': {
+          const { userAPI } = await import('../api/user');
+          response = await userAPI.getProfile();
+          break;
+        }
         default:
           return;
       }
@@ -132,6 +138,8 @@ const AdminCoreDashboard = () => {
         }
         if (page === 'dashboard') {
           setData((prev) => ({ ...prev, stats: fetchedData }));
+        } else if (page === 'profile') {
+          useAdminAuthStore.getState().setUser(fetchedData.user || fetchedData);
         } else {
           setData((prev) => ({ ...prev, [page]: fetchedData }));
         }
@@ -160,6 +168,7 @@ const AdminCoreDashboard = () => {
         'help_requests',
         'dashboard',
         'timetables',
+        'profile',
       ].includes(activePage)
     ) {
       fetchData(activePage);
@@ -328,6 +337,7 @@ Please bring your student ID. All discussions will remain strictly confidential.
       pending_approvals: 'PENDING APPROVALS',
       counseling_requests: 'COUNSELING REQUESTS',
       help_requests: 'HELP REQUESTS',
+      profile: 'IDENTITY PROFILE',
     };
     return labels[key] || key.replace('_', ' ').toUpperCase();
   };
@@ -379,14 +389,22 @@ Please bring your student ID. All discussions will remain strictly confidential.
               category: 'SUPPORT',
               items: ['sos', 'counseling_requests', 'help_requests'],
             },
+            {
+              category: 'ACCOUNT',
+              items: ['profile'],
+            },
           ].map((cat) => {
             const visibleItems = cat.items.filter((key) => {
-              if (user?.role === 'admin') return true;
+              if (user?.role === 'admin') {
+                return key !== 'profile'; // Admins don't need to edit their profile in this view
+              }
               if (user?.role === 'counselor') {
-                return ['students', 'teachers', 'sos', 'counseling_requests'].includes(key);
+                return ['students', 'teachers', 'sos', 'counseling_requests', 'profile'].includes(
+                  key
+                );
               }
               if (user?.role === 'staff') {
-                return ['students', 'teachers', 'sos', 'help_requests', 'timetables'].includes(key);
+                return ['students', 'teachers', 'sos', 'help_requests', 'profile'].includes(key);
               }
               return false;
             });
@@ -395,7 +413,7 @@ Please bring your student ID. All discussions will remain strictly confidential.
 
             return (
               <div key={cat.category} className="space-y-2">
-                <p className="px-4 text-[10px] font-black text-teal-400 uppercase tracking-[0.2em] opacity-50">
+                <p className="px-4 text-xs font-black text-teal-400 uppercase tracking-[0.2em] opacity-50">
                   {cat.category}
                 </p>
                 {visibleItems.map((key) => (
@@ -406,7 +424,7 @@ Please bring your student ID. All discussions will remain strictly confidential.
                       setSearchTerm('');
                       setFilterDept('All');
                     }}
-                    className={`w-full text-left px-6 py-4 rounded-2xl text-[10px] font-black transition-all duration-300 group relative overflow-hidden ${
+                    className={`w-full text-left px-6 py-4 rounded-2xl text-xs font-black transition-all duration-300 group relative overflow-hidden ${
                       activePage === key
                         ? 'bg-gradient-to-r from-teal-400 to-teal-500 text-blue-950 shadow-[0_8px_20px_-6px_rgba(45,212,191,0.5)]'
                         : 'text-slate-400 hover:bg-white/5 hover:text-white border border-transparent hover:border-white/5'
@@ -451,830 +469,386 @@ Please bring your student ID. All discussions will remain strictly confidential.
         </div>
       </aside>
 
-      {/* MAIN CONTENT */}
       <main className="flex-1 overflow-y-auto p-10 bg-slate-50">
-        <header className="mb-10">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-3xl font-black text-blue-950 capitalize tracking-tighter">
-              {formatSidebarLabel(activePage)}
-            </h2>
-            <div className="flex gap-4">
-              {activePage === 'counselors' && (
-                <button
-                  onClick={() => setShowAddCounselorModal(true)}
-                  className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-600/20 active:scale-95 flex items-center gap-2"
-                >
-                  <Plus size={16} strokeWidth={3} />
-                  Add Counselor
-                </button>
-              )}
-              {activePage === 'staff' && (
-                <button
-                  onClick={() => setShowAddStaffModal(true)}
-                  className="bg-teal-600 hover:bg-teal-500 text-white px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-teal-600/20 active:scale-95 flex items-center gap-2"
-                >
-                  <Plus size={16} strokeWidth={3} />
-                  Add Staff
-                </button>
-              )}
-            </div>
-          </div>
-
-          {['students', 'teachers', 'counselors', 'staff', 'timetables'].includes(activePage) && (
-            <div className="flex flex-wrap gap-4 items-center bg-white p-4 rounded-3xl border border-slate-200 shadow-sm">
-              <div className="flex-1 relative">
-                <input
-                  type="text"
-                  placeholder={`Search ${activePage}...`}
-                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-[11px] font-bold outline-none focus:ring-2 ring-teal-500/20"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-                <svg
-                  className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="3"
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                  />
-                </svg>
-              </div>
-
-              {['students', 'teachers', 'timetables'].includes(activePage) && (
-                <select
-                  className="px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-[11px] font-black uppercase outline-none focus:ring-2 ring-teal-500/20 min-w-[150px]"
-                  value={filterDept}
-                  onChange={(e) => setFilterDept(e.target.value)}
-                >
-                  <option value="All">All Departments</option>
-                  <option value="Computer Science">Computer Science</option>
-                  <option value="Business">Business</option>
-                  <option value="Arts">Arts</option>
-                </select>
-              )}
-            </div>
-          )}
-        </header>
-
-        {/* --- DASHBOARD OVERVIEW --- */}
-        {activePage === 'dashboard' &&
-          (loading && !data.stats ? (
-            <div className="flex flex-col items-center justify-center py-20">
-              <div className="w-12 h-12 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin mb-4"></div>
-              <p className="text-xs font-black text-teal-600 uppercase tracking-widest">
-                Aggregating System Intelligence...
+        {activePage === 'profile' && (user.role === 'counselor' || user.role === 'staff') ? (
+          <div className="animate-in fade-in slide-in-from-right-10 duration-700">
+            <header className="mb-12">
+              <h2 className="text-4xl font-black text-blue-950 uppercase tracking-tighter">
+                Identity <span className="text-teal-600">Verification</span>
+              </h2>
+              <p className="text-slate-400 text-sm font-bold uppercase tracking-widest mt-2 px-1">
+                Institutional Administrative Identity Profile
               </p>
-            </div>
-          ) : data.stats ? (
-            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              {/* Quick Stats Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {[
-                  {
-                    label: 'Total Students',
-                    value: data.stats.users.students,
-                    color: 'bg-blue-600',
-                    icon: '🎓',
-                  },
-                  {
-                    label: 'Teachers',
-                    value: data.stats.users.teachers,
-                    color: 'bg-emerald-600',
-                    icon: '👨‍🏫',
-                  },
-                  {
-                    label: 'Counselors',
-                    value: data.stats.users.counselors,
-                    color: 'bg-amber-600',
-                    icon: '🤝',
-                  },
-                  {
-                    label: 'Operational Staff',
-                    value: data.stats.users.staff,
-                    color: 'bg-indigo-600',
-                    icon: '🛠️',
-                  },
-                ].map((stat, idx) => (
-                  <div
-                    key={idx}
-                    className="bg-white border border-slate-200 p-8 rounded-[2rem] shadow-sm hover:shadow-md transition-all group"
-                  >
-                    <div className="flex justify-between items-start mb-4">
-                      <span className="text-3xl">{stat.icon}</span>
-                      <div
-                        className={`w-2 h-8 rounded-full ${stat.color} opacity-50 group-hover:opacity-100 transition-opacity`}
-                      ></div>
-                    </div>
-                    <h4 className="text-[10px] font-black text-teal-600 uppercase tracking-widest">
-                      {stat.label}
-                    </h4>
-                    <p className="text-3xl font-black text-blue-900 mt-1">
-                      {stat.value.toString().padStart(2, '0')}
-                    </p>
-                  </div>
-                ))}
+            </header>
+            <ProfileManager
+              user={user}
+              onUpdate={(updatedUser) => useAdminAuthStore.getState().setUser(updatedUser)}
+              type={user.role}
+            />
+          </div>
+        ) : (
+          <>
+            <header className="mb-10">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-3xl font-black text-blue-950 capitalize tracking-tighter">
+                  {formatSidebarLabel(activePage)}
+                </h2>
+                <div className="flex gap-4">
+                  {activePage === 'counselors' && (
+                    <button
+                      onClick={() => setShowAddCounselorModal(true)}
+                      className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-blue-600/20 active:scale-95 flex items-center gap-2"
+                    >
+                      <Plus size={16} strokeWidth={3} />
+                      Add Counselor
+                    </button>
+                  )}
+                  {activePage === 'staff' && (
+                    <button
+                      onClick={() => setShowAddStaffModal(true)}
+                      className="bg-teal-600 hover:bg-teal-500 text-white px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-lg shadow-teal-600/20 active:scale-95 flex items-center gap-2"
+                    >
+                      <Plus size={16} strokeWidth={3} />
+                      Add Staff
+                    </button>
+                  )}
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* Critical Alerts */}
-                <div className="bg-white border border-slate-200 p-8 rounded-[3rem] shadow-sm">
-                  <h3 className="text-xs font-black text-teal-900 uppercase tracking-widest mb-6 flex items-center gap-2">
-                    <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span> Critical
-                    Node Status
-                  </h3>
-                  <div className="space-y-4">
+              {['students', 'teachers', 'counselors', 'staff', 'timetables'].includes(
+                activePage
+              ) && (
+                <div className="flex flex-wrap gap-4 items-center bg-white p-4 rounded-3xl border border-slate-200 shadow-sm">
+                  <div className="flex-1 relative">
+                    <input
+                      type="text"
+                      placeholder={`Search ${activePage}...`}
+                      className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-[11px] font-bold outline-none focus:ring-2 ring-teal-500/20"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                    <svg
+                      className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="3"
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                      />
+                    </svg>
+                  </div>
+
+                  {['students', 'teachers', 'timetables'].includes(activePage) && (
+                    <select
+                      className="px-4 py-3 bg-slate-50 border border-slate-100 rounded-2xl text-[11px] font-black uppercase outline-none focus:ring-2 ring-teal-500/20 min-w-[150px]"
+                      value={filterDept}
+                      onChange={(e) => setFilterDept(e.target.value)}
+                    >
+                      <option value="All">All Departments</option>
+                      <option value="Computer Science">Computer Science</option>
+                      <option value="Business">Business</option>
+                      <option value="Arts">Arts</option>
+                    </select>
+                  )}
+                </div>
+              )}
+            </header>
+
+            {/* --- DASHBOARD OVERVIEW --- */}
+            {activePage === 'dashboard' &&
+              (loading && !data.stats ? (
+                <div className="flex flex-col items-center justify-center py-20">
+                  <div className="w-12 h-12 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin mb-4"></div>
+                  <p className="text-xs font-black text-teal-600 uppercase tracking-widest">
+                    Aggregating System Intelligence...
+                  </p>
+                </div>
+              ) : data.stats ? (
+                <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  {/* Quick Stats Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     {[
                       {
-                        label: 'Pending SOS Alerts',
-                        value: data.stats.requests.sos,
-                        color: 'text-red-500',
-                        bg: 'bg-red-500/10',
+                        label: 'Total Students',
+                        value: data.stats.users.students,
+                        color: 'bg-blue-600',
+                        icon: '🎓',
                       },
                       {
-                        label: 'Counseling Requests',
-                        value: data.stats.requests.counseling,
-                        color: 'text-amber-500',
-                        bg: 'bg-amber-500/10',
+                        label: 'Teachers',
+                        value: data.stats.users.teachers,
+                        color: 'bg-emerald-600',
+                        icon: '👨‍🏫',
                       },
                       {
-                        label: 'Help Requests',
-                        value: data.stats.requests.help,
-                        color: 'text-blue-500',
-                        bg: 'bg-blue-500/10',
+                        label: 'Counselors',
+                        value: data.stats.users.counselors,
+                        color: 'bg-amber-600',
+                        icon: '🤝',
                       },
                       {
-                        label: 'Faculty Approvals',
-                        value: data.stats.users.pendingFaculty,
-                        color: 'text-emerald-500',
-                        bg: 'bg-emerald-500/10',
+                        label: 'Operational Staff',
+                        value: data.stats.users.staff,
+                        color: 'bg-indigo-600',
+                        icon: '🛠️',
                       },
-                      {
-                        label: 'Active Timetables',
-                        value: data.stats.requests.timetables || 0,
-                        color: 'text-indigo-500',
-                        bg: 'bg-indigo-500/10',
-                      },
-                    ].map((alert, idx) => (
+                    ].map((stat, idx) => (
                       <div
                         key={idx}
-                        className={`flex justify-between items-center p-5 rounded-2xl ${alert.bg} border border-slate-100`}
+                        className="bg-white border border-slate-200 p-8 rounded-[2rem] shadow-sm hover:shadow-md transition-all group"
                       >
-                        <span className="text-[10px] font-black uppercase text-teal-700">
-                          {alert.label}
-                        </span>
-                        <span className={`text-xl font-black ${alert.color}`}>
-                          {alert.value.toString().padStart(2, '0')}
-                        </span>
+                        <div className="flex justify-between items-start mb-4">
+                          <span className="text-3xl">{stat.icon}</span>
+                          <div
+                            className={`w-2 h-8 rounded-full ${stat.color} opacity-50 group-hover:opacity-100 transition-opacity`}
+                          ></div>
+                        </div>
+                        <h4 className="text-[10px] font-black text-teal-600 uppercase tracking-widest">
+                          {stat.label}
+                        </h4>
+                        <p className="text-3xl font-black text-blue-900 mt-1">
+                          {stat.value.toString().padStart(2, '0')}
+                        </p>
                       </div>
                     ))}
                   </div>
-                </div>
 
-                {/* System Health */}
-                <div className="bg-white border border-slate-200 p-8 rounded-[3rem] shadow-sm flex flex-col justify-center text-center">
-                  <div className="mb-6">
-                    <div className="inline-block p-4 rounded-full bg-emerald-500/10 mb-4">
-                      <svg
-                        className="w-12 h-12 text-emerald-500"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-                        />
-                      </svg>
-                    </div>
-                    <h3 className="text-xl font-black text-blue-900 uppercase tracking-tighter italic">
-                      System Operational
-                    </h3>
-                    <p className="text-xs text-teal-600 mt-2 font-bold uppercase tracking-widest">
-                      Gateway Verified • Secure Encryption
-                    </p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4 mt-4">
-                    <button
-                      onClick={() => setActivePage('counseling_requests')}
-                      className="bg-slate-50 hover:bg-slate-100 py-4 rounded-2xl transition-all border border-slate-100"
-                    >
-                      <p className="text-[8px] font-black text-slate-400 uppercase mb-1">Queue</p>
-                      <p className="text-xs font-black text-blue-900">COUNSELING</p>
-                    </button>
-                    <button
-                      onClick={() => setActivePage('help_requests')}
-                      className="bg-slate-50 hover:bg-slate-100 py-4 rounded-2xl transition-all border border-slate-100"
-                    >
-                      <p className="text-[8px] font-black text-slate-400 uppercase mb-1">Queue</p>
-                      <p className="text-xs font-black text-blue-900">HELP</p>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="text-center py-20 text-slate-500 font-bold uppercase tracking-widest text-[10px]">
-              No system statistics available
-            </div>
-          ))}
-
-        {/* --- USER LISTS (Students, Teachers, Counselors, Staff) --- */}
-        {['students', 'teachers', 'counselors', 'staff'].includes(activePage) && (
-          <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-xl">
-            <table className="w-full text-left">
-              <thead className="text-[10px] text-slate-400 uppercase font-black border-b border-slate-100">
-                <tr>
-                  <th className="pb-4">Member</th>
-                  <th className="pb-4">ID</th>
-                  <th className="pb-4">Email</th>
-                  <th className="pb-4">Dept</th>
-                  <th className="pb-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="text-sm divide-y divide-slate-100">
-                {loading ? (
-                  <tr>
-                    <td colSpan="5" className="py-10 text-center text-slate-400">
-                      <div className="flex flex-col items-center">
-                        <div className="w-8 h-8 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin mb-4"></div>
-                        <span className="font-bold tracking-widest uppercase text-[10px]">
-                          Accessing Secure Records...
-                        </span>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {/* Critical Alerts */}
+                    <div className="bg-white border border-slate-200 p-8 rounded-[3rem] shadow-sm">
+                      <h3 className="text-xs font-black text-teal-900 uppercase tracking-widest mb-6 flex items-center gap-2">
+                        <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>{' '}
+                        Critical Node Status
+                      </h3>
+                      <div className="space-y-4">
+                        {[
+                          {
+                            label: 'Pending SOS Alerts',
+                            value: data.stats.requests.sos,
+                            color: 'text-red-500',
+                            bg: 'bg-red-500/10',
+                          },
+                          {
+                            label: 'Counseling Requests',
+                            value: data.stats.requests.counseling,
+                            color: 'text-amber-500',
+                            bg: 'bg-amber-500/10',
+                          },
+                          {
+                            label: 'Help Requests',
+                            value: data.stats.requests.help,
+                            color: 'text-blue-500',
+                            bg: 'bg-blue-500/10',
+                          },
+                          {
+                            label: 'Faculty Approvals',
+                            value: data.stats.users.pendingFaculty,
+                            color: 'text-emerald-500',
+                            bg: 'bg-emerald-500/10',
+                          },
+                          {
+                            label: 'Active Timetables',
+                            value: data.stats.requests.timetables || 0,
+                            color: 'text-indigo-500',
+                            bg: 'bg-indigo-500/10',
+                          },
+                        ].map((alert, idx) => (
+                          <div
+                            key={idx}
+                            className={`flex justify-between items-center p-5 rounded-2xl ${alert.bg} border border-slate-100`}
+                          >
+                            <span className="text-[10px] font-black uppercase text-teal-700">
+                              {alert.label}
+                            </span>
+                            <span className={`text-xl font-black ${alert.color}`}>
+                              {alert.value.toString().padStart(2, '0')}
+                            </span>
+                          </div>
+                        ))}
                       </div>
-                    </td>
-                  </tr>
-                ) : data[activePage].length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan="5"
-                      className="py-10 text-center text-slate-500 font-bold uppercase tracking-widest text-[10px]"
-                    >
-                      No records found
-                    </td>
-                  </tr>
-                ) : (
-                  getFilteredData().map((item) => (
-                    <tr
-                      key={item._id}
-                      onClick={() => setSelectedPerson(item)}
-                      className={`group hover:bg-slate-50 transition-all cursor-pointer ${!item.isActive ? 'opacity-40' : ''}`}
-                    >
-                      <td className="py-4 flex items-center space-x-3">
-                        <div className="w-10 h-10 rounded-full bg-slate-100 border-2 border-slate-200 overflow-hidden flex-shrink-0 flex items-center justify-center font-bold text-blue-600">
-                          {item.profilePic || item.avatar ? (
-                            <img
-                              src={item.profilePic || item.avatar}
-                              className="w-full h-full object-cover"
-                              alt="pfp"
+                    </div>
+
+                    {/* System Health */}
+                    <div className="bg-white border border-slate-200 p-8 rounded-[3rem] shadow-sm flex flex-col justify-center text-center">
+                      <div className="mb-6">
+                        <div className="inline-block p-4 rounded-full bg-emerald-500/10 mb-4">
+                          <svg
+                            className="w-12 h-12 text-emerald-500"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth="2"
+                              d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
                             />
-                          ) : (
-                            (item.firstName || item.name || 'U').charAt(0)
-                          )}
+                          </svg>
                         </div>
-                        <span className="font-bold text-blue-900 group-hover:text-blue-600">
-                          {item.firstName ? `${item.firstName} ${item.lastName}` : item.name}
-                        </span>
-                      </td>
-                      <td className="py-4 font-mono text-slate-500 text-xs">
-                        {item.studentId || item.employeeId || item.id}
-                      </td>
-                      <td className="py-4 font-mono text-slate-500 text-xs text-ellipsis overflow-hidden">
-                        {item.email}
-                      </td>
-                      <td className="py-4 text-slate-600">
-                        {item.department || item.specialization || item.category}
-                      </td>
-                      <td className="py-4 text-right">
-                        {user.role === 'admin' && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleBlock(item._id, activePage);
-                            }}
-                            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase ${!item.isActive ? 'bg-emerald-600 text-white' : 'bg-red-600/10 text-red-500'}`}
-                          >
-                            {item.isActive ? 'Block' : 'Unblock'}
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* --- EVENTS VIEW --- */}
-        {activePage === 'events' && (
-          <div className="grid gap-6">
-            {loading ? (
-              <div className="flex flex-col items-center py-20">
-                <div className="w-10 h-10 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin mb-4"></div>
-                <span className="font-bold tracking-widest uppercase text-[10px] text-slate-400">
-                  Loading events...
-                </span>
-              </div>
-            ) : data.events.length === 0 ? (
-              <div className="text-center py-20 text-slate-500 font-bold uppercase tracking-widest text-[10px]">
-                No events found
-              </div>
-            ) : (
-              data.events.map((event) => (
-                <div
-                  key={event._id}
-                  className="bg-white border border-slate-200 rounded-2xl overflow-hidden hover:shadow-lg transition-all cursor-pointer group flex flex-col md:flex-row"
-                >
-                  {/* Event Image */}
-                  <div className="w-full md:w-64 h-48 md:h-auto bg-slate-100 relative shrink-0">
-                    {event.image ? (
-                      <img
-                        src={`http://localhost:3000${event.image}`}
-                        alt={event.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        onError={(e) => {
-                          e.target.style.display = 'none';
-                          e.target.parentElement.classList.add('hidden');
-                        }}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-slate-50 text-slate-300">
-                        <svg
-                          className="w-12 h-12"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                          />
-                        </svg>
-                      </div>
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent md:bg-gradient-to-r md:from-transparent md:to-transparent opacity-60"></div>
-                  </div>
-
-                  {/* Content */}
-                  <div className="p-6 flex-1 flex flex-col justify-between">
-                    <div>
-                      <div className="flex justify-between items-start mb-4">
-                        <div>
-                          <h3 className="text-xl font-black text-blue-900 group-hover:text-blue-600 leading-tight">
-                            {event.title}
-                          </h3>
-                          <p className="text-[10px] text-teal-600 uppercase tracking-widest mt-2 font-bold">
-                            {event.category}
-                          </p>
-                        </div>
-                        <span
-                          className={`px-3 py-1 rounded-full text-[9px] font-black uppercase shrink-0 ml-4 ${
-                            event.status === 'published'
-                              ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
-                              : event.status === 'completed'
-                                ? 'bg-blue-50 text-blue-600 border border-blue-100'
-                                : 'bg-slate-50 text-slate-500 border border-slate-100'
-                          }`}
-                        >
-                          {event.status}
-                        </span>
-                      </div>
-                      <p className="text-sm text-slate-600 mb-4 line-clamp-2 leading-relaxed font-medium">
-                        {event.description}
-                      </p>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-slate-400 font-bold uppercase tracking-wide mt-auto pt-4 border-t border-slate-50">
-                      <span className="flex items-center gap-1.5">
-                        <svg
-                          className="w-4 h-4 text-blue-500"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                          />
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                          />
-                        </svg>
-                        {event.location}
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <svg
-                          className="w-4 h-4 text-blue-500"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                          />
-                        </svg>
-                        {new Date(event.startDate).toLocaleDateString()}
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <svg
-                          className="w-4 h-4 text-blue-500"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-                          />
-                        </svg>
-                        {event.department}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        )}
-
-        {/* --- SOS ALERTS VIEW --- */}
-        {activePage === 'sos' && (
-          <div className="grid gap-6">
-            {loading ? (
-              <div className="flex flex-col items-center py-20">
-                <div className="w-10 h-10 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin mb-4"></div>
-                <span className="font-bold tracking-widest uppercase text-[10px] text-slate-400">
-                  Loading SOS alerts...
-                </span>
-              </div>
-            ) : data.sos.length === 0 ? (
-              <div className="text-center py-20 text-slate-500 font-bold uppercase tracking-widest text-[10px]">
-                No SOS alerts found
-              </div>
-            ) : (
-              data.sos.map((alert) => (
-                <div
-                  key={alert._id}
-                  className={`border-l-4 bg-white border-slate-200 rounded-r-2xl p-6 hover:shadow-lg transition-all cursor-pointer group ${
-                    alert.priority === 'critical'
-                      ? 'border-l-red-500'
-                      : alert.priority === 'high'
-                        ? 'border-l-orange-500'
-                        : alert.priority === 'medium'
-                          ? 'border-l-yellow-500'
-                          : 'border-l-blue-500'
-                  }`}
-                >
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-black text-blue-900 group-hover:text-blue-600">
-                          {alert.student?.firstName} {alert.student?.lastName}
+                        <h3 className="text-xl font-black text-blue-900 uppercase tracking-tighter italic">
+                          System Operational
                         </h3>
-                        <span className="text-xs text-slate-400">({alert.student?.studentId})</span>
-                        <span className="text-[10px] text-slate-500 font-mono">
-                          {alert.student?.email}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-400 uppercase tracking-widest">
-                        {alert.type}
-                      </p>
-                    </div>
-                    <div className="flex flex-col items-end gap-2">
-                      <span
-                        className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${
-                          alert.status === 'resolved'
-                            ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
-                            : alert.status === 'in-progress'
-                              ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20'
-                              : alert.status === 'acknowledged'
-                                ? 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20'
-                                : 'bg-red-500/10 text-red-500 border border-red-500/20'
-                        }`}
-                      >
-                        {alert.status}
-                      </span>
-                      <span
-                        className={`px-2 py-1 rounded text-[8px] font-black uppercase ${
-                          alert.priority === 'critical'
-                            ? 'bg-red-600 text-white'
-                            : alert.priority === 'high'
-                              ? 'bg-orange-500 text-white'
-                              : alert.priority === 'medium'
-                                ? 'bg-yellow-600 text-white'
-                                : 'bg-blue-500 text-white'
-                        }`}
-                      >
-                        {alert.priority}
-                      </span>
-                    </div>
-                  </div>
-                  <p className="text-sm text-slate-600 mb-4">{alert.description}</p>
-                  <div className="flex items-center gap-6 text-xs text-slate-500">
-                    {alert.location?.building && <span>🏢 {alert.location.building}</span>}
-                    {alert.location?.room && <span>🚪 {alert.location.room}</span>}
-                    <span>⏰ {new Date(alert.createdAt).toLocaleString()}</span>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        )}
-
-        {/* --- COUNSELING REQUESTS VIEW --- */}
-        {activePage === 'counseling_requests' && (
-          <div className="grid gap-6">
-            {loading ? (
-              <div className="flex flex-col items-center py-20">
-                <div className="w-10 h-10 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin mb-4"></div>
-                <span className="font-bold tracking-widest uppercase text-[10px] text-slate-400 text-center">
-                  Establishing secure tunnel to Counseling Database...
-                </span>
-              </div>
-            ) : data.counseling_requests.length === 0 ? (
-              <div className="text-center py-20 text-slate-500 font-bold uppercase tracking-widest text-[10px]">
-                No counseling requests found
-              </div>
-            ) : (
-              data.counseling_requests.map((req) => (
-                <div
-                  key={req._id}
-                  onClick={() => setSelectedCounselingRequest(req)}
-                  className="bg-white border border-slate-200 rounded-2xl p-6 hover:shadow-lg transition-all group cursor-pointer"
-                >
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="text-lg font-black text-blue-950 italic tracking-tighter uppercase line-clamp-1">
-                        {req.title}
-                      </h3>
-                      <div className="flex gap-3 items-center mt-1">
-                        <p className="text-[10px] text-blue-500 font-bold uppercase tracking-widest px-2 py-0.5 bg-blue-50 rounded">
-                          {req.category}
+                        <p className="text-xs text-teal-600 mt-2 font-bold uppercase tracking-widest">
+                          Gateway Verified • Secure Encryption
                         </p>
-                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest flex items-center gap-1">
-                          📡 {req.preferredMode}
-                        </span>
                       </div>
-                    </div>
-                    <div className="flex gap-2">
-                      {req.status === 'pending' && user?.role === 'counselor' && (
-                        <>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleCounselingAction(req._id, 'accept');
-                            }}
-                            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-[9px] font-black uppercase rounded-xl transition-all shadow-lg shadow-emerald-600/20"
-                          >
-                            Assign / Accept
-                          </button>
-                        </>
-                      )}
-                      <span
-                        className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase ${
-                          req.status === 'accepted' ||
-                          req.status === 'in-session' ||
-                          req.status === 'completed'
-                            ? 'bg-emerald-500/10 text-emerald-500'
-                            : req.status === 'pending'
-                              ? 'bg-amber-500/10 text-amber-500'
-                              : 'bg-red-500/10 text-red-500'
-                        }`}
-                      >
-                        {req.status}
-                      </span>
-                    </div>
-                  </div>
-                  <p className="text-sm text-slate-600 mb-4 line-clamp-3 leading-relaxed">
-                    {req.description}
-                  </p>
-                  <div className="flex items-center justify-between pt-4 border-t border-slate-50">
-                    <div className="flex items-center gap-6 text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                      <span className="flex items-center gap-1.5">
-                        👤{' '}
-                        {req.isAnonymous
-                          ? 'ANONYMOUS'
-                          : `${req.student?.firstName} ${req.student?.lastName}`}
-                      </span>
-                      <span>📅 {new Date(req.createdAt).toLocaleDateString()}</span>
-                      {req.preferredSlot && (
-                        <span className="flex items-center gap-1 text-teal-600">
-                          🕒 {req.preferredSlot}
-                        </span>
-                      )}
-                      {req.preferredCounselor && (
-                        <span className="text-indigo-500">
-                          🎯 Pref: {req.preferredCounselor?.firstName}
-                        </span>
-                      )}
-                    </div>
-                    <span
-                      className={`px-3 py-1 rounded text-[8px] font-black uppercase ${
-                        req.priority === 'urgent' || req.priority === 'high'
-                          ? 'bg-red-600 text-white'
-                          : req.priority === 'medium'
-                            ? 'bg-yellow-600 text-white'
-                            : 'bg-blue-500 text-white'
-                      }`}
-                    >
-                      {req.priority}
-                    </span>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        )}
-
-        {/* --- HELP REQUESTS VIEW --- */}
-        {activePage === 'help_requests' && (
-          <div className="grid gap-6">
-            {loading ? (
-              <div className="flex flex-col items-center py-20">
-                <div className="w-10 h-10 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin mb-4"></div>
-                <span className="font-bold tracking-widest uppercase text-[10px] text-slate-400">
-                  Retrieving Help Desk Protocol...
-                </span>
-              </div>
-            ) : data.help_requests.length === 0 ? (
-              <div className="text-center py-20 text-slate-500 font-bold uppercase tracking-widest text-[10px]">
-                No help requests found
-              </div>
-            ) : (
-              data.help_requests.map((req) => (
-                <div
-                  key={req._id}
-                  className="bg-white border border-slate-200 rounded-2xl p-6 hover:shadow-lg transition-all group"
-                >
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="text-lg font-black text-blue-900 italic tracking-tighter uppercase">
-                        {req.title}
-                      </h3>
-                      <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-widest mt-1">
-                        {req.category}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      {(req.status === 'Pending' || req.status === 'pending') && (
-                        <>
-                          <button
-                            onClick={() => handleHelpAction(req._id, 'accept')}
-                            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-[9px] font-black uppercase rounded-xl transition-all shadow-lg shadow-emerald-600/20"
-                          >
-                            Assign to Me
-                          </button>
-                          <button
-                            onClick={() => handleHelpAction(req._id, 'reject')}
-                            className="px-4 py-2 bg-red-600/10 hover:bg-red-600/20 text-red-500 text-[9px] font-black uppercase rounded-xl border border-red-500/20 transition-all"
-                          >
-                            Reject
-                          </button>
-                        </>
-                      )}
-                      {req.status !== 'Pending' && req.status !== 'pending' && (
-                        <span
-                          className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase ${
-                            req.status === 'Resolved' ||
-                            req.status === 'In Progress' ||
-                            req.status === 'assigned'
-                              ? 'bg-emerald-500/10 text-emerald-500'
-                              : 'bg-red-500/10 text-red-500'
-                          }`}
+                      <div className="grid grid-cols-2 gap-4 mt-4">
+                        <button
+                          onClick={() => setActivePage('counseling_requests')}
+                          className="bg-slate-50 hover:bg-slate-100 py-4 rounded-2xl transition-all border border-slate-100"
                         >
-                          {req.status}
-                        </span>
-                      )}
+                          <p className="text-[8px] font-black text-slate-400 uppercase mb-1">
+                            Queue
+                          </p>
+                          <p className="text-xs font-black text-blue-900">COUNSELING</p>
+                        </button>
+                        <button
+                          onClick={() => setActivePage('help_requests')}
+                          className="bg-slate-50 hover:bg-slate-100 py-4 rounded-2xl transition-all border border-slate-100"
+                        >
+                          <p className="text-[8px] font-black text-slate-400 uppercase mb-1">
+                            Queue
+                          </p>
+                          <p className="text-xs font-black text-blue-900">HELP</p>
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                  <p className="text-sm text-slate-600 mb-4 line-clamp-3">{req.description}</p>
-
-                  {/* Quick Response Inputs (Optional) */}
-                  {(req.status === 'Pending' || req.status === 'pending') && (
-                    <div className="mb-4 grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-100">
-                      <input
-                        type="text"
-                        placeholder="Contact Number (Optional)"
-                        className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-[10px] outline-none focus:border-blue-500"
-                        value={adminContact}
-                        onChange={(e) => setAdminContact(e.target.value)}
-                      />
-                      <input
-                        type="text"
-                        placeholder="Response Message (Optional)"
-                        className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-[10px] outline-none focus:border-blue-500"
-                        value={adminMessage}
-                        onChange={(e) => setAdminMessage(e.target.value)}
-                      />
-                    </div>
-                  )}
-
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4 text-[10px] text-slate-400">
-                      <span className="font-bold">
-                        STUDENT: {req.student?.firstName} {req.student?.lastName}
-                      </span>
-                      <span>📍 {req.location?.current || 'N/A'}</span>
-                    </div>
-                    <span
-                      className={`px-2 py-1 rounded text-[8px] font-black uppercase ${
-                        req.priority === 'High' || req.priority === 'high'
-                          ? 'bg-red-600 text-white'
-                          : req.priority === 'Medium' || req.priority === 'medium'
-                            ? 'bg-yellow-600 text-white'
-                            : 'bg-blue-500 text-white'
-                      }`}
-                    >
-                      {req.priority}
-                    </span>
                   </div>
                 </div>
-              ))
-            )}
-          </div>
-        )}
+              ) : (
+                <div className="text-center py-20 text-slate-500 font-bold uppercase tracking-widest text-[10px]">
+                  No system statistics available
+                </div>
+              ))}
 
-        {/* --- TIMETABLES VIEW --- */}
-        {activePage === 'timetables' && (
-          <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-xl">
-            <table className="w-full text-left">
-              <thead className="text-[10px] text-slate-400 uppercase font-black border-b border-slate-100">
-                <tr>
-                  <th className="pb-4">Department</th>
-                  <th className="pb-4">Semester</th>
-                  <th className="pb-4">Section</th>
-                  <th className="pb-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="text-sm divide-y divide-slate-100">
+            {/* --- USER LISTS (Students, Teachers, Counselors, Staff) --- */}
+            {['students', 'teachers', 'counselors', 'staff'].includes(activePage) && (
+              <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-xl">
+                <table className="w-full text-left">
+                  <thead className="text-[10px] text-slate-400 uppercase font-black border-b border-slate-100">
+                    <tr>
+                      <th className="pb-4">Member</th>
+                      <th className="pb-4">ID</th>
+                      <th className="pb-4">Email</th>
+                      <th className="pb-4">Dept</th>
+                      <th className="pb-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-sm divide-y divide-slate-100">
+                    {loading ? (
+                      <tr>
+                        <td colSpan="5" className="py-10 text-center text-slate-400">
+                          <div className="flex flex-col items-center">
+                            <div className="w-8 h-8 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin mb-4"></div>
+                            <span className="font-bold tracking-widest uppercase text-[10px]">
+                              Accessing Secure Records...
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : data[activePage].length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan="5"
+                          className="py-10 text-center text-slate-500 font-bold uppercase tracking-widest text-[10px]"
+                        >
+                          No records found
+                        </td>
+                      </tr>
+                    ) : (
+                      getFilteredData().map((item) => (
+                        <tr
+                          key={item._id}
+                          onClick={() => setSelectedPerson(item)}
+                          className={`group hover:bg-slate-50 transition-all cursor-pointer ${!item.isActive ? 'opacity-40' : ''}`}
+                        >
+                          <td className="py-4 flex items-center space-x-3">
+                            <div className="w-10 h-10 rounded-full bg-slate-100 border-2 border-slate-200 overflow-hidden flex-shrink-0 flex items-center justify-center font-bold text-blue-600">
+                              {item.avatar || item.profilePic ? (
+                                <img
+                                  src={`http://localhost:3000${item.avatar || item.profilePic}`}
+                                  className="w-full h-full object-cover"
+                                  alt="pfp"
+                                />
+                              ) : (
+                                (item.firstName || item.name || 'U').charAt(0)
+                              )}
+                            </div>
+                            <span className="font-bold text-blue-900 group-hover:text-blue-600">
+                              {item.firstName ? `${item.firstName} ${item.lastName}` : item.name}
+                            </span>
+                          </td>
+                          <td className="py-4 font-mono text-slate-500 text-xs">
+                            {item.studentId || item.employeeId || item.id}
+                          </td>
+                          <td className="py-4 font-mono text-slate-500 text-xs text-ellipsis overflow-hidden">
+                            {item.email}
+                          </td>
+                          <td className="py-4 text-slate-600">
+                            {item.department || item.specialization || item.category}
+                          </td>
+                          <td className="py-4 text-right">
+                            {user.role === 'admin' && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleBlock(item._id, activePage);
+                                }}
+                                className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase ${!item.isActive ? 'bg-emerald-600 text-white' : 'bg-red-600/10 text-red-500'}`}
+                              >
+                                {item.isActive ? 'Block' : 'Unblock'}
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* --- EVENTS VIEW --- */}
+            {activePage === 'events' && (
+              <div className="grid gap-6">
                 {loading ? (
-                  <tr>
-                    <td colSpan="4" className="py-10 text-center">
-                      <div className="flex flex-col items-center">
-                        <div className="w-8 h-8 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
-                      </div>
-                    </td>
-                  </tr>
-                ) : getFilteredData().length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan="4"
-                      className="py-10 text-center text-slate-500 font-bold uppercase tracking-widest text-[10px]"
-                    >
-                      No timetables found
-                    </td>
-                  </tr>
+                  <div className="flex flex-col items-center py-20">
+                    <div className="w-10 h-10 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin mb-4"></div>
+                    <span className="font-bold tracking-widest uppercase text-[10px] text-slate-400">
+                      Loading events...
+                    </span>
+                  </div>
+                ) : data.events.length === 0 ? (
+                  <div className="text-center py-20 text-slate-500 font-bold uppercase tracking-widest text-[10px]">
+                    No events found
+                  </div>
                 ) : (
-                  getFilteredData().map((table) => (
-                    <tr key={table._id} className="group hover:bg-slate-50 transition-all">
-                      <td className="py-6 font-bold text-blue-900">{table.department}</td>
-                      <td className="py-6">
-                        <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-lg font-black text-[10px] uppercase">
-                          Semester {table.semester}
-                        </span>
-                      </td>
-                      <td className="py-6 font-mono font-bold text-slate-400">{table.section}</td>
-                      <td className="py-6 text-right">
-                        <div className="flex justify-end gap-2">
-                          <button
-                            onClick={async () => {
-                              if (
-                                window.confirm('Are you sure you want to delete this timetable?')
-                              ) {
-                                try {
-                                  const res = await timetableAPI.deleteTimetable(table._id);
-                                  if (res.success) {
-                                    toast.success('Timetable deleted');
-                                    fetchData('timetables');
-                                  }
-                                } catch (err) {
-                                  toast.error(err.message || 'Delete failed');
-                                }
-                              }
+                  data.events.map((event) => (
+                    <div
+                      key={event._id}
+                      className="bg-white border border-slate-200 rounded-2xl overflow-hidden hover:shadow-lg transition-all cursor-pointer group flex flex-col md:flex-row"
+                    >
+                      {/* Event Image */}
+                      <div className="w-full md:w-64 h-48 md:h-auto bg-slate-100 relative shrink-0">
+                        {event.image ? (
+                          <img
+                            src={`http://localhost:3000${event.image}`}
+                            alt={event.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              e.target.parentElement.classList.add('hidden');
                             }}
-                            className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
-                          >
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-slate-50 text-slate-300">
                             <svg
-                              className="w-5 h-5"
+                              className="w-12 h-12"
                               fill="none"
                               stroke="currentColor"
                               viewBox="0 0 24 24"
@@ -1283,22 +857,520 @@ Please bring your student ID. All discussions will remain strictly confidential.
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
                                 strokeWidth="2"
-                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
                               />
                             </svg>
-                          </button>
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent md:bg-gradient-to-r md:from-transparent md:to-transparent opacity-60"></div>
+                      </div>
+
+                      {/* Content */}
+                      <div className="p-6 flex-1 flex flex-col justify-between">
+                        <div>
+                          <div className="flex justify-between items-start mb-4">
+                            <div>
+                              <h3 className="text-xl font-black text-blue-900 group-hover:text-blue-600 leading-tight">
+                                {event.title}
+                              </h3>
+                              <p className="text-[10px] text-teal-600 uppercase tracking-widest mt-2 font-bold">
+                                {event.category}
+                              </p>
+                            </div>
+                            <span
+                              className={`px-3 py-1 rounded-full text-[9px] font-black uppercase shrink-0 ml-4 ${
+                                event.status === 'published'
+                                  ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                                  : event.status === 'completed'
+                                    ? 'bg-blue-50 text-blue-600 border border-blue-100'
+                                    : 'bg-slate-50 text-slate-500 border border-slate-100'
+                              }`}
+                            >
+                              {event.status}
+                            </span>
+                          </div>
+                          <p className="text-sm text-slate-600 mb-4 line-clamp-2 leading-relaxed font-medium">
+                            {event.description}
+                          </p>
                         </div>
-                      </td>
-                    </tr>
+
+                        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-slate-400 font-bold uppercase tracking-wide mt-auto pt-4 border-t border-slate-50">
+                          <span className="flex items-center gap-1.5">
+                            <svg
+                              className="w-4 h-4 text-blue-500"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                              />
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                              />
+                            </svg>
+                            {event.location}
+                          </span>
+                          <span className="flex items-center gap-1.5">
+                            <svg
+                              className="w-4 h-4 text-blue-500"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                              />
+                            </svg>
+                            {new Date(event.startDate).toLocaleDateString()}
+                          </span>
+                          <span className="flex items-center gap-1.5">
+                            <svg
+                              className="w-4 h-4 text-blue-500"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                              />
+                            </svg>
+                            {event.department}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
                   ))
                 )}
-              </tbody>
-            </table>
-          </div>
-        )}
+              </div>
+            )}
 
-        {/* --- PENDING APPROVALS VIEW --- */}
-        {activePage === 'pending_approvals' && <PendingFacultyApprovals />}
+            {/* --- SOS ALERTS VIEW --- */}
+            {activePage === 'sos' && (
+              <div className="grid gap-6">
+                {loading ? (
+                  <div className="flex flex-col items-center py-20">
+                    <div className="w-10 h-10 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin mb-4"></div>
+                    <span className="font-bold tracking-widest uppercase text-[10px] text-slate-400">
+                      Loading SOS alerts...
+                    </span>
+                  </div>
+                ) : data.sos.length === 0 ? (
+                  <div className="text-center py-20 text-slate-500 font-bold uppercase tracking-widest text-[10px]">
+                    No SOS alerts found
+                  </div>
+                ) : (
+                  data.sos.map((alert) => (
+                    <div
+                      key={alert._id}
+                      className={`border-l-4 bg-white border-slate-200 rounded-r-2xl p-6 hover:shadow-lg transition-all cursor-pointer group ${
+                        alert.priority === 'critical'
+                          ? 'border-l-red-500'
+                          : alert.priority === 'high'
+                            ? 'border-l-orange-500'
+                            : alert.priority === 'medium'
+                              ? 'border-l-yellow-500'
+                              : 'border-l-blue-500'
+                      }`}
+                    >
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <div className="flex items-center gap-3 mb-2">
+                            <h3 className="text-lg font-black text-blue-900 group-hover:text-blue-600">
+                              {alert.student?.firstName} {alert.student?.lastName}
+                            </h3>
+                            <span className="text-xs text-slate-400">
+                              ({alert.student?.studentId})
+                            </span>
+                            <span className="text-[10px] text-slate-500 font-mono">
+                              {alert.student?.email}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-400 uppercase tracking-widest">
+                            {alert.type}
+                          </p>
+                        </div>
+                        <div className="flex flex-col items-end gap-2">
+                          <span
+                            className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${
+                              alert.status === 'resolved'
+                                ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                                : alert.status === 'in-progress'
+                                  ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20'
+                                  : alert.status === 'acknowledged'
+                                    ? 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20'
+                                    : 'bg-red-500/10 text-red-500 border border-red-500/20'
+                            }`}
+                          >
+                            {alert.status}
+                          </span>
+                          <span
+                            className={`px-2 py-1 rounded text-[8px] font-black uppercase ${
+                              alert.priority === 'critical'
+                                ? 'bg-red-600 text-white'
+                                : alert.priority === 'high'
+                                  ? 'bg-orange-500 text-white'
+                                  : alert.priority === 'medium'
+                                    ? 'bg-yellow-600 text-white'
+                                    : 'bg-blue-500 text-white'
+                            }`}
+                          >
+                            {alert.priority}
+                          </span>
+                        </div>
+                      </div>
+                      <p className="text-sm text-slate-600 mb-4">{alert.description}</p>
+                      <div className="flex items-center gap-6 text-xs text-slate-500">
+                        {alert.location?.building && <span>🏢 {alert.location.building}</span>}
+                        {alert.location?.room && <span>🚪 {alert.location.room}</span>}
+                        <span>⏰ {new Date(alert.createdAt).toLocaleString()}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* --- COUNSELING REQUESTS VIEW --- */}
+            {activePage === 'counseling_requests' && (
+              <div className="grid gap-6">
+                {loading ? (
+                  <div className="flex flex-col items-center py-20">
+                    <div className="w-10 h-10 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin mb-4"></div>
+                    <span className="font-bold tracking-widest uppercase text-[10px] text-slate-400 text-center">
+                      Establishing secure tunnel to Counseling Database...
+                    </span>
+                  </div>
+                ) : data.counseling_requests.length === 0 ? (
+                  <div className="text-center py-20 text-slate-500 font-bold uppercase tracking-widest text-[10px]">
+                    No counseling requests found
+                  </div>
+                ) : (
+                  data.counseling_requests.map((req) => (
+                    <div
+                      key={req._id}
+                      onClick={() => setSelectedCounselingRequest(req)}
+                      className="bg-white border border-slate-200 rounded-2xl p-6 hover:shadow-lg transition-all group cursor-pointer"
+                    >
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <h3 className="text-lg font-black text-blue-950 italic tracking-tighter uppercase line-clamp-1">
+                            {req.title}
+                          </h3>
+                          <div className="flex gap-3 items-center mt-1">
+                            <p className="text-[10px] text-blue-500 font-bold uppercase tracking-widest px-2 py-0.5 bg-blue-50 rounded">
+                              {req.category}
+                            </p>
+                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest flex items-center gap-1">
+                              📡 {req.preferredMode}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          {req.status === 'pending' && user?.role === 'counselor' && (
+                            <>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCounselingAction(req._id, 'accept');
+                                }}
+                                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-[9px] font-black uppercase rounded-xl transition-all shadow-lg shadow-emerald-600/20"
+                              >
+                                Assign / Accept
+                              </button>
+                            </>
+                          )}
+                          <span
+                            className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase ${
+                              req.status === 'accepted' ||
+                              req.status === 'in-session' ||
+                              req.status === 'completed'
+                                ? 'bg-emerald-500/10 text-emerald-500'
+                                : req.status === 'pending'
+                                  ? 'bg-amber-500/10 text-amber-500'
+                                  : 'bg-red-500/10 text-red-500'
+                            }`}
+                          >
+                            {req.status}
+                          </span>
+                        </div>
+                      </div>
+                      <p className="text-sm text-slate-600 mb-4 line-clamp-3 leading-relaxed">
+                        {req.description}
+                      </p>
+                      <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                        <div className="flex items-center gap-6 text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                          <span className="flex items-center gap-2">
+                            <div className="w-5 h-5 rounded-full overflow-hidden bg-slate-100 border border-slate-200 shrink-0 flex items-center justify-center">
+                              {!req.isAnonymous && req.student?.avatar ? (
+                                <img
+                                  src={`http://localhost:3000${req.student.avatar}`}
+                                  className="w-full h-full object-cover"
+                                  alt="avatar"
+                                />
+                              ) : (
+                                <span className="text-[10px]">👤</span>
+                              )}
+                            </div>
+                            <span className="truncate">
+                              {req.isAnonymous
+                                ? 'ANONYMOUS'
+                                : `${req.student?.firstName} ${req.student?.lastName}`}
+                            </span>
+                          </span>
+                          <span>📅 {new Date(req.createdAt).toLocaleDateString()}</span>
+                          {req.preferredSlot && (
+                            <span className="flex items-center gap-1 text-teal-600">
+                              🕒 {req.preferredSlot}
+                            </span>
+                          )}
+                          {req.preferredCounselor && (
+                            <span className="text-indigo-500">
+                              🎯 Pref: {req.preferredCounselor?.firstName}
+                            </span>
+                          )}
+                        </div>
+                        <span
+                          className={`px-3 py-1 rounded text-[8px] font-black uppercase ${
+                            req.priority === 'urgent' || req.priority === 'high'
+                              ? 'bg-red-600 text-white'
+                              : req.priority === 'medium'
+                                ? 'bg-yellow-600 text-white'
+                                : 'bg-blue-500 text-white'
+                          }`}
+                        >
+                          {req.priority}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* --- HELP REQUESTS VIEW --- */}
+            {activePage === 'help_requests' && (
+              <div className="grid gap-6">
+                {loading ? (
+                  <div className="flex flex-col items-center py-20">
+                    <div className="w-10 h-10 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin mb-4"></div>
+                    <span className="font-bold tracking-widest uppercase text-[10px] text-slate-400">
+                      Retrieving Help Desk Protocol...
+                    </span>
+                  </div>
+                ) : data.help_requests.length === 0 ? (
+                  <div className="text-center py-20 text-slate-500 font-bold uppercase tracking-widest text-[10px]">
+                    No help requests found
+                  </div>
+                ) : (
+                  data.help_requests.map((req) => (
+                    <div
+                      key={req._id}
+                      className="bg-white border border-slate-200 rounded-2xl p-6 hover:shadow-lg transition-all group"
+                    >
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <h3 className="text-lg font-black text-blue-900 italic tracking-tighter uppercase">
+                            {req.title}
+                          </h3>
+                          <p className="text-[10px] text-emerald-600 font-bold uppercase tracking-widest mt-1">
+                            {req.category}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          {(req.status === 'Pending' || req.status === 'pending') && (
+                            <>
+                              <button
+                                onClick={() => handleHelpAction(req._id, 'accept')}
+                                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-[9px] font-black uppercase rounded-xl transition-all shadow-lg shadow-emerald-600/20"
+                              >
+                                Assign to Me
+                              </button>
+                              <button
+                                onClick={() => handleHelpAction(req._id, 'reject')}
+                                className="px-4 py-2 bg-red-600/10 hover:bg-red-600/20 text-red-500 text-[9px] font-black uppercase rounded-xl border border-red-500/20 transition-all"
+                              >
+                                Reject
+                              </button>
+                            </>
+                          )}
+                          {req.status !== 'Pending' && req.status !== 'pending' && (
+                            <span
+                              className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase ${
+                                req.status === 'Resolved' ||
+                                req.status === 'In Progress' ||
+                                req.status === 'assigned'
+                                  ? 'bg-emerald-500/10 text-emerald-500'
+                                  : 'bg-red-500/10 text-red-500'
+                              }`}
+                            >
+                              {req.status}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <p className="text-sm text-slate-600 mb-4 line-clamp-3">{req.description}</p>
+
+                      {/* Quick Response Inputs (Optional) */}
+                      {(req.status === 'Pending' || req.status === 'pending') && (
+                        <div className="mb-4 grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                          <input
+                            type="text"
+                            placeholder="Contact Number (Optional)"
+                            className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-[10px] outline-none focus:border-blue-500"
+                            value={adminContact}
+                            onChange={(e) => setAdminContact(e.target.value)}
+                          />
+                          <input
+                            type="text"
+                            placeholder="Response Message (Optional)"
+                            className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-[10px] outline-none focus:border-blue-500"
+                            value={adminMessage}
+                            onChange={(e) => setAdminMessage(e.target.value)}
+                          />
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4 text-[10px] text-slate-400">
+                          <div className="w-5 h-5 rounded-full overflow-hidden bg-slate-100 border border-slate-200 shrink-0 flex items-center justify-center">
+                            {req.student?.avatar ? (
+                              <img
+                                src={`http://localhost:3000${req.student.avatar}`}
+                                className="w-full h-full object-cover"
+                                alt="avatar"
+                              />
+                            ) : (
+                              <span className="text-[10px]">👤</span>
+                            )}
+                          </div>
+                          <span className="font-bold">
+                            STUDENT: {req.student?.firstName} {req.student?.lastName}
+                          </span>
+                          <span>📍 {req.location?.current || 'N/A'}</span>
+                        </div>
+                        <span
+                          className={`px-2 py-1 rounded text-[8px] font-black uppercase ${
+                            req.priority === 'High' || req.priority === 'high'
+                              ? 'bg-red-600 text-white'
+                              : req.priority === 'Medium' || req.priority === 'medium'
+                                ? 'bg-yellow-600 text-white'
+                                : 'bg-blue-500 text-white'
+                          }`}
+                        >
+                          {req.priority}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* --- TIMETABLES VIEW --- */}
+            {activePage === 'timetables' && (
+              <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-xl">
+                <table className="w-full text-left">
+                  <thead className="text-[10px] text-slate-400 uppercase font-black border-b border-slate-100">
+                    <tr>
+                      <th className="pb-4">Department</th>
+                      <th className="pb-4">Semester</th>
+                      <th className="pb-4">Section</th>
+                      <th className="pb-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-sm divide-y divide-slate-100">
+                    {loading ? (
+                      <tr>
+                        <td colSpan="4" className="py-10 text-center">
+                          <div className="flex flex-col items-center">
+                            <div className="w-8 h-8 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : getFilteredData().length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan="4"
+                          className="py-10 text-center text-slate-500 font-bold uppercase tracking-widest text-[10px]"
+                        >
+                          No timetables found
+                        </td>
+                      </tr>
+                    ) : (
+                      getFilteredData().map((table) => (
+                        <tr key={table._id} className="group hover:bg-slate-50 transition-all">
+                          <td className="py-6 font-bold text-blue-900">{table.department}</td>
+                          <td className="py-6">
+                            <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-lg font-black text-[10px] uppercase">
+                              Semester {table.semester}
+                            </span>
+                          </td>
+                          <td className="py-6 font-mono font-bold text-slate-400">
+                            {table.section}
+                          </td>
+                          <td className="py-6 text-right">
+                            <div className="flex justify-end gap-2">
+                              <button
+                                onClick={async () => {
+                                  if (
+                                    window.confirm(
+                                      'Are you sure you want to delete this timetable?'
+                                    )
+                                  ) {
+                                    try {
+                                      const res = await timetableAPI.deleteTimetable(table._id);
+                                      if (res.success) {
+                                        toast.success('Timetable deleted');
+                                        fetchData('timetables');
+                                      }
+                                    } catch (err) {
+                                      toast.error(err.message || 'Delete failed');
+                                    }
+                                  }
+                                }}
+                                className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                              >
+                                <svg
+                                  className="w-5 h-5"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth="2"
+                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                  />
+                                </svg>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* --- PENDING APPROVALS VIEW --- */}
+            {activePage === 'pending_approvals' && <PendingFacultyApprovals />}
+          </>
+        )}
       </main>
       {selectedPerson && (
         <div
@@ -1306,56 +1378,179 @@ Please bring your student ID. All discussions will remain strictly confidential.
           onClick={() => setSelectedPerson(null)}
         >
           <div
-            className="bg-white border border-slate-200 w-full max-w-xl rounded-[3rem] shadow-2xl overflow-hidden animate-in zoom-in-95"
+            className="bg-white border border-slate-200 w-full max-w-xl rounded-[3rem] shadow-2xl overflow-hidden animate-in zoom-in-95 max-h-[90vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="h-32 bg-slate-100 relative overflow-hidden">
-              {selectedPerson.profilePic || selectedPerson.avatar ? (
-                <img
-                  src={selectedPerson.profilePic || selectedPerson.avatar}
-                  className="w-full h-full object-cover"
-                  alt="Full Profile"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center bg-blue-600 text-6xl font-black text-white">
-                  {(selectedPerson.firstName || selectedPerson.name || 'U').charAt(0)}
-                </div>
-              )}
-            </div>
-            <div className="p-8 pt-6">
-              <div className="flex justify-between items-start mb-6">
-                <div>
-                  <h3 className="text-2xl font-black text-blue-900">
-                    {selectedPerson.firstName
-                      ? `${selectedPerson.firstName} ${selectedPerson.lastName}`
-                      : selectedPerson.name}
-                  </h3>
-                  <p className="text-blue-600 font-black text-[10px] uppercase tracking-widest">
-                    {selectedPerson.role === 'counselor'
-                      ? selectedPerson.specialization
-                      : selectedPerson.department || selectedPerson.category}
-                  </p>
-                </div>
-                <div
-                  className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${selectedPerson.isActive ? 'text-emerald-500 bg-emerald-500/10 border border-emerald-500/20' : 'text-red-500 bg-red-500/10 border border-red-500/20'}`}
-                >
-                  {selectedPerson.isActive ? 'Active' : 'Blocked'}
-                </div>
-              </div>
-              <div className="p-5 bg-slate-50 rounded-[2rem] border border-slate-200">
-                <p className="text-[10px] text-slate-400 font-black uppercase mb-1">
-                  Contact Details
-                </p>
-                <p className="text-sm font-bold text-blue-900">
-                  {selectedPerson.mobile || selectedPerson.phone || 'N/A'}
-                </p>
-                <p className="text-xs text-slate-500">{selectedPerson.email}</p>
-                {selectedPerson.availability && (
-                  <p className="text-[10px] text-blue-500 mt-2 font-bold uppercase tracking-widest">
-                    🕒 {selectedPerson.availability}
-                  </p>
+            <div className="h-40 bg-gradient-to-br from-blue-900 via-blue-950 to-slate-900 relative">
+              <div className="absolute inset-0 bg-white/5 backdrop-blur-[2px]"></div>
+              <div className="absolute -bottom-12 left-1/2 -translate-x-1/2 w-24 h-24 rounded-3xl border-4 border-white shadow-2xl overflow-hidden bg-white">
+                {selectedPerson.avatar || selectedPerson.profilePic ? (
+                  <img
+                    src={`http://localhost:3000${selectedPerson.avatar || selectedPerson.profilePic}`}
+                    className="w-full h-full object-cover"
+                    alt="Full Profile"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-blue-600 text-3xl font-black text-white">
+                    {(selectedPerson.firstName || selectedPerson.name || 'U').charAt(0)}
+                  </div>
                 )}
               </div>
+            </div>
+            <div className="p-8 pt-12 overflow-y-auto custom-scrollbar flex-1">
+              <div className="text-center w-full mb-6">
+                <h3 className="text-2xl font-black text-blue-900 uppercase tracking-tight">
+                  {selectedPerson.firstName
+                    ? `${selectedPerson.firstName} ${selectedPerson.lastName}`
+                    : selectedPerson.name}
+                </h3>
+                <div className="flex items-center justify-center gap-2 mt-1">
+                  <p className="text-blue-600 font-black text-[9px] uppercase tracking-[0.2em] bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
+                    {selectedPerson.role === 'counselor'
+                      ? selectedPerson.specialization
+                      : selectedPerson.department || selectedPerson.category || selectedPerson.role}
+                  </p>
+                  <div
+                    className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${selectedPerson.isActive ? 'text-emerald-500 bg-emerald-500/10 border border-emerald-500/20' : 'text-red-500 bg-red-500/10 border border-red-500/20'}`}
+                  >
+                    {selectedPerson.isActive ? 'Active' : 'Blocked'}
+                  </div>
+                </div>
+              </div>
+              <div className="p-5 bg-slate-50 rounded-[2rem] border border-slate-200 grid grid-cols-2 gap-4">
+                <div className="col-span-2 space-y-1">
+                  <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">
+                    Email Interface
+                  </p>
+                  <p className="text-xs font-bold text-blue-950 truncate">{selectedPerson.email}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">
+                    Contact
+                  </p>
+                  <p className="text-xs font-bold text-blue-900">
+                    {selectedPerson.mobile || selectedPerson.phone || 'N/A'}
+                  </p>
+                </div>
+                {selectedPerson.availability && (
+                  <div className="space-y-1">
+                    <p className="text-[10px] text-blue-500 font-black uppercase tracking-widest">
+                      Availability
+                    </p>
+                    <p className="text-xs font-bold text-blue-900">
+                      🕒 {selectedPerson.availability}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {selectedPerson.role === 'student' && (
+                <div className="mt-4 p-5 bg-indigo-50/50 rounded-[2rem] border border-indigo-100 space-y-4">
+                  <p className="text-[10px] text-indigo-600 font-black uppercase tracking-widest">
+                    Academic Record
+                  </p>
+                  <div
+                    className={`grid ${selectedPerson.section ? 'grid-cols-3' : 'grid-cols-2'} gap-4`}
+                  >
+                    <div className="text-center p-3 bg-white rounded-2xl border border-indigo-50 shadow-sm">
+                      <p className="text-[8px] text-indigo-400 font-black uppercase mb-1">
+                        Semester
+                      </p>
+                      <p className="text-lg font-black text-indigo-900">
+                        {selectedPerson.semester || 'N/A'}
+                      </p>
+                    </div>
+                    {selectedPerson.section && (
+                      <div className="text-center p-3 bg-white rounded-2xl border border-indigo-50 shadow-sm">
+                        <p className="text-[8px] text-indigo-400 font-black uppercase mb-1">
+                          Section
+                        </p>
+                        <p className="text-lg font-black text-indigo-900">
+                          {selectedPerson.section}
+                        </p>
+                      </div>
+                    )}
+                    <div className="text-center p-3 bg-white rounded-2xl border border-indigo-50 shadow-sm overflow-hidden">
+                      <p className="text-[8px] text-indigo-400 font-black uppercase mb-1">
+                        Student ID
+                      </p>
+                      <p className="text-[10px] font-black text-indigo-900 truncate">
+                        {selectedPerson.studentId || 'N/A'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {selectedPerson.role === 'faculty' && (
+                <div className="mt-4 p-5 bg-blue-50/50 rounded-[2rem] border border-blue-100 space-y-4">
+                  <p className="text-[10px] text-blue-600 font-black uppercase tracking-widest">
+                    Professional Portfolio
+                  </p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-4 bg-white rounded-2xl border border-blue-50 shadow-sm">
+                      <p className="text-[8px] text-blue-400 font-black uppercase mb-1">
+                        Employee ID
+                      </p>
+                      <p className="text-xs font-black text-blue-900">
+                        {selectedPerson.employeeId || 'N/A'}
+                      </p>
+                    </div>
+                    <div className="p-4 bg-white rounded-2xl border border-blue-50 shadow-sm">
+                      <p className="text-[8px] text-blue-400 font-black uppercase mb-1">
+                        Designation
+                      </p>
+                      <p className="text-xs font-black text-blue-900 truncate">
+                        {selectedPerson.designation || 'Lecturer'}
+                      </p>
+                    </div>
+                    <div className="p-4 bg-white rounded-2xl border border-blue-50 shadow-sm">
+                      <p className="text-[8px] text-blue-400 font-black uppercase mb-1">Dept.</p>
+                      <p className="text-xs font-black text-blue-900">
+                        {selectedPerson.department || 'General'}
+                      </p>
+                    </div>
+                    <div className="p-4 bg-white rounded-2xl border border-blue-50 shadow-sm">
+                      <p className="text-[8px] text-blue-400 font-black uppercase mb-1">Exp.</p>
+                      <p className="text-xs font-black text-blue-900">
+                        {selectedPerson.experience || '0'} Years
+                      </p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    {selectedPerson.qualification && (
+                      <div className="p-4 bg-white rounded-2xl border border-blue-50 shadow-sm">
+                        <p className="text-[8px] text-blue-400 font-black uppercase mb-1">
+                          Credentials
+                        </p>
+                        <p className="text-xs font-bold text-blue-900">
+                          {selectedPerson.qualification}
+                        </p>
+                      </div>
+                    )}
+                    {selectedPerson.specialization && (
+                      <div className="p-4 bg-white rounded-2xl border border-blue-50 shadow-sm">
+                        <p className="text-[8px] text-blue-400 font-black uppercase mb-1">
+                          Specialization
+                        </p>
+                        <p className="text-xs font-bold text-blue-900">
+                          {selectedPerson.specialization}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  {selectedPerson.bio && (
+                    <div className="pt-2">
+                      <p className="text-xs text-blue-400 uppercase font-black mb-1">
+                        Professional Bio
+                      </p>
+                      <p className="text-sm text-slate-900 font-medium italic leading-relaxed">
+                        "{selectedPerson.bio}"
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {selectedPerson.role === 'counselor' && (
                 <div className="mt-4 p-5 bg-slate-50 rounded-[2rem] border border-slate-200 space-y-3">
@@ -1383,11 +1578,19 @@ Please bring your student ID. All discussions will remain strictly confidential.
                     </span>
                   </div>
                   <div className="pt-2">
-                    <p className="text-[9px] text-slate-400 uppercase font-black mb-1">About</p>
-                    <p className="text-xs text-slate-600 italic leading-relaxed">
+                    <p className="text-xs text-slate-400 uppercase font-black mb-1">
+                      About & Strategy
+                    </p>
+                    <p className="text-sm text-slate-900 font-medium italic leading-relaxed">
                       "{selectedPerson.bio}"
                     </p>
                   </div>
+                  {selectedPerson.designation && (
+                    <div className="flex justify-between text-xs pt-2 border-t border-slate-100">
+                      <span className="text-slate-500">Title:</span>
+                      <span className="text-blue-900 font-bold">{selectedPerson.designation}</span>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1400,11 +1603,29 @@ Please bring your student ID. All discussions will remain strictly confidential.
                     <span className="text-slate-500">Department:</span>
                     <span className="text-blue-900 font-bold">{selectedPerson.category}</span>
                   </div>
+                  <div className="space-y-3">
+                    {selectedPerson.designation && (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-slate-500">Designation:</span>
+                        <span className="text-blue-900 font-bold">
+                          {selectedPerson.designation}
+                        </span>
+                      </div>
+                    )}
+                    {selectedPerson.qualification && (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-slate-500">Academic:</span>
+                        <span className="text-blue-900 font-bold">
+                          {selectedPerson.qualification}
+                        </span>
+                      </div>
+                    )}
+                  </div>
                   <div className="pt-2">
-                    <p className="text-[9px] text-slate-400 uppercase font-black mb-1">
+                    <p className="text-xs text-slate-400 uppercase font-black mb-1">
                       Role & Responsibility
                     </p>
-                    <p className="text-xs text-slate-600 italic leading-relaxed">
+                    <p className="text-sm text-slate-900 font-medium italic leading-relaxed">
                       "
                       {selectedPerson.bio ||
                         'Assisting new coming students and managing college-related operations.'}

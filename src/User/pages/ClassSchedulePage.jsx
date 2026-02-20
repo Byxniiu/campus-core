@@ -11,63 +11,41 @@ import {
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// Mock Timetable Data for a specific student (BSc Computer Science)
-const mockWeeklySchedule = {
-  Monday: [
-    { time: '09:00 AM', subject: 'Calculus I', code: 'MA101', room: 'A-201', type: 'Lecture' },
-    {
-      time: '10:00 AM',
-      subject: 'Data Structures',
-      code: 'CS205',
-      room: 'Lab 4',
-      type: 'Practical',
-    },
-    { time: '11:00 AM', subject: 'Web Development', code: 'CS210', room: 'B-305', type: 'Lecture' },
-  ],
-  Tuesday: [
-    {
-      time: '10:00 AM',
-      subject: 'Operating Systems',
-      code: 'CS301',
-      room: 'A-101',
-      type: 'Lecture',
-    },
-    {
-      time: '01:00 PM',
-      subject: 'Study Pod Session',
-      code: 'SP-CS',
-      room: 'Library Pod',
-      type: 'Pod',
-    },
-    { time: '03:00 PM', subject: 'Linear Algebra', code: 'MA102', room: 'A-201', type: 'Tutorial' },
-  ],
-  Wednesday: [], // Example of a light day
-  Thursday: [
-    {
-      time: '09:00 AM',
-      subject: 'Database Management',
-      code: 'CS305',
-      room: 'Lab 5',
-      type: 'Practical',
-    },
-    {
-      time: '12:00 PM',
-      subject: 'Technical Seminar',
-      code: 'CS400',
-      room: 'Auditorium',
-      type: 'Seminar',
-    },
-  ],
-  Friday: [
-    { time: '10:00 AM', subject: 'Ethics & Law', code: 'HU101', room: 'C-100', type: 'Lecture' },
-  ],
-};
+// Mock schedule removed for being unused after API integration
+
+import { timetableAPI } from '../../api/timetables';
+import toast from 'react-hot-toast';
 
 const ClassSchedulePage = () => {
-  const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
-  const [selectedDay, setSelectedDay] = useState('Monday'); // Default to Monday
+  const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const [selectedDay, setSelectedDay] = useState('Monday');
+  const [timetable, setTimetable] = useState(null);
+  const [, setLoading] = useState(true);
 
-  const scheduleForDay = mockWeeklySchedule[selectedDay] || [];
+  React.useEffect(() => {
+    const fetchTimetable = async () => {
+      try {
+        const res = await timetableAPI.getMyTimetable();
+        if (res.success) {
+          setTimetable(res.data.timetable);
+        }
+      } catch (error) {
+        console.error('Failed to fetch timetable:', error);
+        toast.error('Failed to load schedule');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchTimetable();
+  }, []);
+
+  const getScheduleForDay = (dayName) => {
+    if (!timetable) return [];
+    const dayData = timetable.schedule.find((d) => d.day === dayName);
+    return dayData ? dayData.periods : [];
+  };
+
+  const scheduleForDay = getScheduleForDay(selectedDay);
   const hasClasses = scheduleForDay.length > 0;
 
   const containerVariants = {
@@ -228,7 +206,7 @@ const ClassSchedulePage = () => {
                         <p
                           className={`text-[9px] font-bold uppercase tracking-widest mt-2.5 ${styles.text}`}
                         >
-                          {item.type}
+                          {item.type || 'Lecture'}
                         </p>
                       </div>
 
@@ -236,20 +214,27 @@ const ClassSchedulePage = () => {
                         <div className="flex items-center justify-center md:justify-start gap-3 mb-4">
                           <Clock size={16} className="text-blue-950/20" />
                           <p className="text-xl font-bold text-blue-950 tracking-tight">
-                            {item.time}
+                            {item.startTime} - {item.endTime}
                           </p>
                         </div>
                         <p className="font-outfit text-4xl font-bold text-blue-950 tracking-tight leading-none mb-4 group-hover:text-teal-600 transition-colors uppercase">
                           {item.subject}
                         </p>
-                        <div className="flex items-center justify-center md:justify-start gap-4 mt-6">
+                        <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 mt-6">
                           <span className="text-[10px] font-bold text-blue-950/40 uppercase tracking-[0.2em] bg-blue-50/50 border border-teal-50 px-4 py-2 rounded-xl">
-                            {item.code}
+                            {item.code || 'CORE'}
                           </span>
+                          {item.facultyName && (
+                            <div className="flex items-center gap-2 text-blue-900 bg-blue-50/50 px-4 py-2 rounded-xl border border-blue-100">
+                              <span className="text-[10px] font-bold uppercase tracking-[0.2em]">
+                                PROF: {item.facultyName}
+                              </span>
+                            </div>
+                          )}
                           <div className="flex items-center gap-2 text-teal-600 bg-teal-50/30 px-4 py-2 rounded-xl border border-teal-50">
                             <MapPin size={14} className="text-teal-500" />
                             <span className="text-[10px] font-bold uppercase tracking-[0.2em]">
-                              Point: {item.room}
+                              Point: {item.room || 'TBA'}
                             </span>
                           </div>
                         </div>

@@ -116,12 +116,20 @@ const StaffTab = () => {
           <div className="flex gap-10 items-center">
             <motion.div
               whileHover={{ scale: 1.05 }}
-              className="w-28 h-28 bg-blue-50/50 text-blue-950 rounded-[36px] flex items-center justify-center border border-teal-50 shadow-inner group transition-all duration-500"
+              className="w-28 h-28 bg-blue-50/50 text-blue-950 rounded-[36px] flex items-center justify-center border border-teal-50 shadow-inner group transition-all duration-500 overflow-hidden"
             >
-              <UserCircle
-                size={64}
-                className="text-teal-400 opacity-30 group-hover:opacity-60 transition-opacity"
-              />
+              {selectedItem.avatar ? (
+                <img
+                  src={`http://localhost:3000${selectedItem.avatar}`}
+                  className="w-full h-full object-cover"
+                  alt="avatar"
+                />
+              ) : (
+                <UserCircle
+                  size={64}
+                  className="text-teal-400 opacity-30 group-hover:opacity-60 transition-opacity"
+                />
+              )}
             </motion.div>
             <motion.div
               initial={{ opacity: 0, x: 20 }}
@@ -301,12 +309,20 @@ const StaffTab = () => {
             <div className="flex items-center gap-10 pl-6">
               <motion.div
                 whileHover={{ scale: 1.1, rotate: -5 }}
-                className="w-20 h-20 bg-blue-50/50 rounded-[28px] flex items-center justify-center text-blue-200 group-hover:bg-blue-950 group-hover:text-teal-400 transition-all duration-700 shadow-inner"
+                className="w-20 h-20 bg-blue-50/50 rounded-[28px] flex items-center justify-center text-blue-200 group-hover:bg-blue-950 group-hover:text-teal-400 transition-all duration-700 shadow-inner overflow-hidden"
               >
-                <UserCircle
-                  size={44}
-                  className="opacity-40 group-hover:opacity-100 transition-opacity"
-                />
+                {s.avatar ? (
+                  <img
+                    src={`http://localhost:3000${s.avatar}`}
+                    className="w-full h-full object-cover"
+                    alt="avatar"
+                  />
+                ) : (
+                  <UserCircle
+                    size={44}
+                    className="opacity-40 group-hover:opacity-100 transition-opacity"
+                  />
+                )}
               </motion.div>
               <div>
                 <h3 className="font-outfit font-bold text-4xl text-blue-950 group-hover:text-teal-600 transition tracking-tight mb-3 uppercase">

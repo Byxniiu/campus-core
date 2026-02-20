@@ -91,12 +91,20 @@ const CounselorsTab = () => {
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.2 }}
-            className="w-36 h-36 bg-blue-50/30 rounded-[44px] flex items-center justify-center text-blue-950 border border-teal-50 relative shadow-inner group"
+            className="w-36 h-36 bg-blue-50/30 rounded-[44px] flex items-center justify-center text-blue-950 border border-teal-50 relative shadow-inner group overflow-hidden"
           >
-            <User
-              size={72}
-              className="text-teal-400 opacity-20 group-hover:opacity-40 transition-opacity"
-            />
+            {selectedItem.avatar ? (
+              <img
+                src={`http://localhost:3000${selectedItem.avatar}`}
+                className="w-full h-full object-cover"
+                alt="avatar"
+              />
+            ) : (
+              <User
+                size={72}
+                className="text-teal-400 opacity-20 group-hover:opacity-40 transition-opacity"
+              />
+            )}
             <div className="absolute -bottom-3 -right-3 bg-blue-950 p-3.5 rounded-2xl border-4 border-white shadow-2xl">
               <ShieldCheck size={22} className="text-teal-400" />
             </div>
@@ -121,38 +129,110 @@ const CounselorsTab = () => {
           </motion.div>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-16 mb-16">
+        <div className="grid md:grid-cols-2 gap-10 mb-16">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
+            className="space-y-8"
           >
-            <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-950/20 mb-6 flex items-center gap-3">
-              <Radio size={14} className="text-teal-500 animate-pulse" /> Specialist Profile
-            </h4>
-            <p className="text-blue-950/60 text-lg font-medium leading-relaxed border-l-4 border-teal-400 pl-8">
-              {selectedItem.bio}
-            </p>
+            <div>
+              <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-950/20 mb-6 flex items-center gap-3">
+                <Radio size={14} className="text-teal-500 animate-pulse" /> Specialist Profile
+              </h4>
+              <p className="text-blue-950/60 text-lg font-medium leading-relaxed border-l-4 border-teal-400 pl-8 italic">
+                "{selectedItem.bio}"
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-6 bg-blue-50/30 rounded-[32px] border border-teal-50/50">
+                <p className="text-[9px] font-black text-blue-950/30 uppercase tracking-widest mb-1">
+                  Experience
+                </p>
+                <p className="text-xl font-bold text-blue-950 tracking-tight">
+                  {selectedItem.experience || 0} Years
+                </p>
+              </div>
+              <div className="p-6 bg-blue-50/30 rounded-[32px] border border-teal-50/50">
+                <p className="text-[9px] font-black text-blue-950/30 uppercase tracking-widest mb-1">
+                  Mode
+                </p>
+                <p className="text-xl font-bold text-blue-950 tracking-tight">
+                  {selectedItem.counselingMode || 'Standard'}
+                </p>
+              </div>
+            </div>
           </motion.div>
+
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
+            className="space-y-6"
           >
-            <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-950/20 mb-6">
-              Operational Window
+            <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-blue-950/20 mb-2 font-jakarta">
+              Operational & Academic Meta
             </h4>
-            <div className="bg-blue-50/50 p-10 rounded-[36px] border border-teal-50 flex items-center gap-6 shadow-inner">
-              <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-xl shadow-teal-50 border border-teal-50 text-teal-400">
-                <Mail size={24} />
+
+            <div className="bg-white p-8 rounded-[40px] border border-teal-50 shadow-sm space-y-6">
+              <div className="flex items-center gap-6">
+                <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-teal-500 shadow-sm border border-teal-50">
+                  <ShieldCheck size={20} />
+                </div>
+                <div>
+                  <p className="text-[8px] font-black text-blue-950/20 uppercase tracking-widest">
+                    Credentials
+                  </p>
+                  <p className="text-blue-950 font-bold text-base tracking-tight">
+                    {selectedItem.qualification || 'Certified Professional'}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-blue-950 font-bold text-xl tracking-tight">
-                  {selectedItem.availability}
+
+              <div className="flex items-center gap-6">
+                <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-teal-400 shadow-sm border border-teal-50">
+                  <Mail size={20} />
+                </div>
+                <div>
+                  <p className="text-[8px] font-black text-blue-950/20 uppercase tracking-widest">
+                    Sync Availability
+                  </p>
+                  <p className="text-blue-950 font-bold text-base tracking-tight">
+                    {selectedItem.availability}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-6">
+                <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-400 shadow-sm border border-teal-50">
+                  <MessageCircle size={20} />
+                </div>
+                <div>
+                  <p className="text-[8px] font-black text-blue-950/20 uppercase tracking-widest">
+                    Connect Matrix
+                  </p>
+                  <p className="text-blue-950 font-bold text-sm tracking-tight">
+                    {selectedItem.email}
+                  </p>
+                  {selectedItem.phone && (
+                    <p className="text-teal-600 font-bold text-[10px] mt-1 tracking-widest">
+                      {selectedItem.phone}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-slate-50 flex items-center justify-between">
+                <p className="text-[9px] font-black text-blue-950/20 uppercase tracking-widest">
+                  Institutional Capacity
                 </p>
-                <p className="text-[9px] font-bold text-blue-950/20 uppercase tracking-widest mt-1.5">
-                  Standard Timezone
-                </p>
+                <div className="px-3 py-1 bg-teal-50 rounded-full border border-teal-100 flex items-center gap-2">
+                  <div className="w-1.5 h-1.5 bg-teal-500 rounded-full animate-pulse"></div>
+                  <span className="text-[9px] font-black text-teal-600 uppercase tracking-widest">
+                    {selectedItem.maxStudentsPerDay || 5} Max Students Per Day
+                  </span>
+                </div>
               </div>
             </div>
           </motion.div>
@@ -223,12 +303,20 @@ const CounselorsTab = () => {
               <div className="flex flex-col md:flex-row items-center gap-8 mb-10">
                 <motion.div
                   whileHover={{ scale: 1.05, rotate: 5 }}
-                  className="w-24 h-24 bg-blue-50/50 rounded-[32px] group-hover:bg-blue-950 flex items-center justify-center text-blue-200 group-hover:text-teal-400 transition-all duration-700 shadow-inner"
+                  className="w-24 h-24 bg-blue-50/50 rounded-[32px] group-hover:bg-blue-950 flex items-center justify-center text-blue-200 group-hover:text-teal-400 transition-all duration-700 shadow-inner overflow-hidden"
                 >
-                  <User
-                    size={48}
-                    className="opacity-40 group-hover:opacity-100 transition-opacity"
-                  />
+                  {c.avatar ? (
+                    <img
+                      src={`http://localhost:3000${c.avatar}`}
+                      className="w-full h-full object-cover"
+                      alt="avatar"
+                    />
+                  ) : (
+                    <User
+                      size={48}
+                      className="opacity-40 group-hover:opacity-100 transition-opacity"
+                    />
+                  )}
                 </motion.div>
                 <div className="flex-1">
                   <h3 className="text-3xl font-outfit font-bold text-blue-950 group-hover:text-teal-600 transition tracking-tight mb-2 uppercase">

@@ -182,13 +182,25 @@ const MyRequestsTab = () => {
                       </h4>
                     </div>
                     <div className="flex items-center gap-4 text-[10px] text-slate-400 font-bold uppercase tracking-tight">
-                      <span className="flex items-center gap-1.5">
-                        <User size={12} />{' '}
-                        {req.staff
-                          ? `${req.staff.firstName} ${req.staff.lastName}`
-                          : req.counselor
-                            ? `${req.counselor.firstName} ${req.counselor.lastName}`
-                            : 'Awaiting Assignment'}
+                      <span className="flex items-center gap-2">
+                        <div className="w-5 h-5 rounded-full overflow-hidden bg-slate-100 border border-slate-200 shrink-0 flex items-center justify-center">
+                          {req.staff?.avatar || req.counselor?.avatar ? (
+                            <img
+                              src={`http://localhost:3000${req.staff?.avatar || req.counselor?.avatar}`}
+                              className="w-full h-full object-cover"
+                              alt="avatar"
+                            />
+                          ) : (
+                            <User size={10} className="text-slate-400" />
+                          )}
+                        </div>
+                        <span className="truncate">
+                          {req.staff
+                            ? `${req.staff.firstName} ${req.staff.lastName}`
+                            : req.counselor
+                              ? `${req.counselor.firstName} ${req.counselor.lastName}`
+                              : 'Awaiting Assignment'}
+                        </span>
                       </span>
                       <span>•</span>
                       <span>{new Date(req.createdAt).toLocaleDateString()}</span>
@@ -259,8 +271,16 @@ const MyRequestsTab = () => {
               <div className="p-10 space-y-8 overflow-y-auto max-h-[60vh]">
                 <div className="grid grid-cols-2 gap-8">
                   <div className="flex gap-4 items-center">
-                    <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400">
-                      <User size={20} />
+                    <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 overflow-hidden shadow-inner">
+                      {selectedRequest.staff?.avatar || selectedRequest.counselor?.avatar ? (
+                        <img
+                          src={`http://localhost:3000${selectedRequest.staff?.avatar || selectedRequest.counselor?.avatar}`}
+                          className="w-full h-full object-cover"
+                          alt="avatar"
+                        />
+                      ) : (
+                        <User size={20} />
+                      )}
                     </div>
                     <div>
                       <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">

@@ -46,6 +46,21 @@ const EventsTab = () => {
 
   const handleRegister = async (event) => {
     if (!user) return;
+
+    // Preventive Frontend Check: Check if event is in the past
+    if (new Date() > new Date(event.startDate)) {
+      toast.error('Registration Closed: This event has already started or concluded.', {
+        style: {
+          borderRadius: '16px',
+          background: '#fee2e2',
+          color: '#991b1b',
+          fontWeight: 'bold',
+          border: '1px solid #fecaca',
+        },
+      });
+      return;
+    }
+
     try {
       setRegistering(true);
       await eventsAPI.registerEvent(event._id);
@@ -69,7 +84,7 @@ const EventsTab = () => {
         }));
       }
     } catch (error) {
-      toast.error(error.toString());
+      toast.error(error?.message || error?.toString() || 'Registration failed');
     } finally {
       setRegistering(false);
     }

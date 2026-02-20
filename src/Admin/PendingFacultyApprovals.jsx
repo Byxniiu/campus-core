@@ -138,9 +138,19 @@ const PendingFacultyApprovals = () => {
                 {/* Faculty Info */}
                 <div className="flex-1 space-y-3">
                   <div className="flex items-center space-x-3">
-                    <div className="w-12 h-12 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                      {faculty.firstName[0]}
-                      {faculty.lastName[0]}
+                    <div className="w-12 h-12 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full flex items-center justify-center text-white font-bold text-lg overflow-hidden border-2 border-slate-100">
+                      {faculty.avatar ? (
+                        <img
+                          src={`http://localhost:3000${faculty.avatar}`}
+                          className="w-full h-full object-cover"
+                          alt="avatar"
+                        />
+                      ) : (
+                        <>
+                          {faculty.firstName[0]}
+                          {faculty.lastName[0]}
+                        </>
+                      )}
                     </div>
                     <div>
                       <h3 className="text-lg font-black text-blue-900 uppercase">

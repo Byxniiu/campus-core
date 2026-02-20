@@ -3,7 +3,6 @@ import {
   Search,
   Users,
   Clock,
-  ArrowRight,
   Plus,
   ChevronLeft,
   MessageSquare,
@@ -183,17 +182,6 @@ const StudyPods = () => {
                     <p className="font-bold text-blue-950 uppercase tracking-tight">{pod.mentor}</p>
                   </div>
                 </div>
-                <Link to={`/study-pod-chat`}>
-                  <button className="px-10 py-5 bg-blue-950 text-white rounded-[24px] hover:bg-teal-600 transition shadow-2xl shadow-teal-100/50 active:scale-[0.98] flex items-center gap-4 group/btn">
-                    <span className="font-bold text-[10px] uppercase tracking-[0.2em]">
-                      Access Channel
-                    </span>
-                    <ArrowRight
-                      size={20}
-                      className="group-hover/btn:translate-x-1 transition-transform text-teal-400"
-                    />
-                  </button>
-                </Link>
               </div>
             </div>
           ))}

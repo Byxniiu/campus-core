@@ -15,9 +15,11 @@ import {
   Anchor,
   FileText,
   BookOpen,
+  Clock,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStudentAuthStore } from '../../stores/useStudentAuthStore';
+import { useSocketStore } from '../../stores/useSocketStore';
 import { authAPI } from '../../api/auth';
 import toast from 'react-hot-toast';
 
@@ -30,11 +32,20 @@ import StaffTab from './Dashboard/StaffTab';
 import ProfileTab from './Dashboard/ProfileTab';
 import MyRequestsTab from './Dashboard/MyRequestsTab';
 import StudyMaterialsTab from './Dashboard/StudyMaterialsTab';
+import TimetableTab from './Dashboard/TimetableTab';
+import { useEffect } from 'react';
 
 const StudentHomePage = () => {
   const navigate = useNavigate();
-  const { user, logout, refreshToken } = useStudentAuthStore();
+  const { user, token, logout, refreshToken } = useStudentAuthStore();
+  const { connect, disconnect } = useSocketStore();
   const [activeTab, setActiveTab] = useState('SOS');
+
+  useEffect(() => {
+    if (token) {
+      connect(token);
+    }
+  }, [token, connect]);
 
   const handleLogout = async () => {
     try {
@@ -44,6 +55,7 @@ const StudentHomePage = () => {
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
+      disconnect();
       logout();
       toast.success('Session terminated securely.');
       navigate('/');
@@ -51,13 +63,30 @@ const StudentHomePage = () => {
   };
 
   const navItems = [
-    { id: 'SOS', icon: <AlertTriangle size={20} /> },
-    { id: 'Groups', icon: <MessageSquare size={20} /> },
-    { id: 'Events', icon: <Calendar size={20} /> },
-    { id: 'Counseling', icon: <Users size={20} /> },
-    { id: 'Staff', icon: <UserCircle size={20} /> },
-    { id: 'Academic', icon: <BookOpen size={20} /> },
-    { id: 'Requests', icon: <FileText size={20} /> },
+    { id: 'SOS', icon: <AlertTriangle size={20} />, tooltip: 'Emergency SOS & Alert System' },
+    {
+      id: 'Groups',
+      icon: <MessageSquare size={20} />,
+      tooltip: 'Collaborative Study Pods & Community',
+    },
+    { id: 'Events', icon: <Calendar size={20} />, tooltip: 'Campus Events & Milestones Sync' },
+    {
+      id: 'Counseling',
+      icon: <Users size={20} />,
+      tooltip: 'Expert Mental Health & Career Support',
+    },
+    { id: 'Staff', icon: <UserCircle size={20} />, tooltip: 'Non-Teaching Support Personnel Hub' },
+    {
+      id: 'Academic',
+      icon: <BookOpen size={20} />,
+      tooltip: 'Curated Study Materials & Dept. Catalog',
+    },
+    { id: 'Schedule', icon: <Clock size={20} />, tooltip: 'Personal Timetable & Weekly Routine' },
+    {
+      id: 'Requests',
+      icon: <FileText size={20} />,
+      tooltip: 'My Submitted Institutional Requests',
+    },
   ];
 
   const renderActiveTab = () => {
@@ -78,6 +107,8 @@ const StudentHomePage = () => {
         return <MyRequestsTab />;
       case 'Academic':
         return <StudyMaterialsTab />;
+      case 'Schedule':
+        return <TimetableTab />;
       default:
         return <SOSTab />;
     }
@@ -111,6 +142,7 @@ const StudentHomePage = () => {
             <button
               key={item.id}
               onClick={() => setActiveTab(item.id)}
+              title={item.tooltip}
               className={`relative px-4 py-2 rounded-full flex items-center gap-2 text-xs font-bold uppercase tracking-wider transition-all duration-300 ${
                 activeTab === item.id
                   ? 'text-white'
@@ -140,7 +172,10 @@ const StudentHomePage = () => {
         {/* RIGHT ACTIONS */}
         <div className="flex items-center gap-6">
           {/* Notifications */}
-          <button className="relative p-2.5 text-slate-400 hover:text-blue-600 hover:bg-white rounded-xl transition-all">
+          <button
+            title="Pulse Notifications & System Alerts"
+            className="relative p-2.5 text-slate-400 hover:text-blue-600 hover:bg-white rounded-xl transition-all"
+          >
             <Bell size={20} />
             <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
           </button>
@@ -151,6 +186,7 @@ const StudentHomePage = () => {
           <div
             className="flex items-center gap-3 group cursor-pointer"
             onClick={() => setActiveTab('My Profile')}
+            title="Identity Matrix & Personal Config"
           >
             <div className="text-right hidden md:block">
               <p className="text-xs font-black text-blue-950 uppercase tracking-tight leading-tight">
@@ -179,7 +215,7 @@ const StudentHomePage = () => {
           <button
             onClick={handleLogout}
             className="p-2.5 bg-red-50 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all shadow-sm"
-            title="Sign Out"
+            title="Secure Session Termination Protocol"
           >
             <LogOut size={18} />
           </button>

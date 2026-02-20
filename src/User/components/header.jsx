@@ -26,10 +26,18 @@ const Header = () => {
 
   // Main navigation links based on platform modules
   const navLinks = [
-    { name: 'Home', href: '/' },
-    { name: 'Study Pods', href: '/study-pod-list' }, // Based on Social Connect & Study Pods [cite: 33]
-    { name: 'Counselling', href: '/counseling-form' }, // Based on Secure Counselling Request System [cite: 37]
-    { name: 'Timetable', href: '/timetable' },
+    { name: 'Home', href: '/', tooltip: 'Return to Student Core Dashboard' },
+    {
+      name: 'Study Pods',
+      href: '/study-pod-list',
+      tooltip: 'Collaborative Study Groups & Connectivity',
+    },
+    {
+      name: 'Counselling',
+      href: '/counseling-form',
+      tooltip: 'Secure Academic & Mental Health Support',
+    },
+    { name: 'Timetable', href: '/class-schedule', tooltip: 'View Personal Class Schedule' },
   ];
 
   return (
@@ -56,6 +64,7 @@ const Header = () => {
               <Link
                 key={link.name}
                 to={link.href}
+                title={link.tooltip}
                 className={`text-blue-950/60 hover:text-teal-600 font-bold text-[11px] uppercase tracking-[0.2em] transition-all duration-200`}
               >
                 {link.name}
@@ -66,7 +75,10 @@ const Header = () => {
           {/* Right Side: Icons and Profile */}
           <div className="flex items-center space-x-5">
             {/* SOS/Notification Icon */}
-            <button className="p-3 rounded-2xl text-blue-200 hover:text-blue-950 hover:bg-blue-50 transition-all focus:outline-none">
+            <button
+              title="Campus Alerts & Important Signal Ledger"
+              className="p-3 rounded-2xl text-blue-200 hover:text-blue-950 hover:bg-blue-50 transition-all focus:outline-none"
+            >
               <svg
                 className="w-6 h-6"
                 fill="none"
@@ -87,6 +99,7 @@ const Header = () => {
             <div className="relative">
               <button
                 onClick={() => setIsProfileOpen(!isProfileOpen)}
+                title="Access Personal Configuration & Data Sync"
                 className={`w-11 h-11 rounded-full bg-blue-950 flex items-center justify-center text-teal-400 font-bold text-sm focus:outline-none focus:ring-4 focus:ring-teal-400/10 shadow-xl shadow-teal-100/50 transition-all hover:scale-105 border-2 border-teal-400/20`}
               >
                 {user ? `${user.firstName[0]}${user.lastName[0]}` : 'U'}

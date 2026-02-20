@@ -13,7 +13,6 @@ import CounselingStats from './User/pages/CounselingStats';
 import SOSSystem from './User/pages/SOSSystem';
 import StudyPods from './User/pages/StudyPods';
 import StudyPodCreate from './User/pages/StudyPodCreate';
-import StudyPodChat from './User/pages/StudyPodChat';
 import StudyMaterials from './User/pages/StudyMaterials';
 import AdminLogin from './Admin/AdminLogin';
 import AdminCoreDashboard from './Admin/AdminCoreDashboard';
@@ -55,7 +54,6 @@ function App() {
 
           <Route path="study-pod-list" element={<StudyPods />} />
           <Route path="/study-pod-create" element={<StudyPodCreate />} />
-          <Route path="/study-pod-chat" element={<StudyPodChat />} />
           <Route path="/study-materials" element={<StudyMaterials />} />
 
           {/*ADMIN*/}

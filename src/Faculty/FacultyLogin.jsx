@@ -3,9 +3,11 @@ import { useNavigate, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { authAPI } from '../api/auth';
 import { GraduationCap, LogIn, Lock, ChevronRight, UserCheck } from 'lucide-react';
+import { useFacultyAuthStore } from '../stores/useFacultyAuthStore';
 
 const FacultyLogin = () => {
   const navigate = useNavigate();
+  const login = useFacultyAuthStore((state) => state.login);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     identifier: '',
@@ -47,9 +49,13 @@ const FacultyLogin = () => {
         toast.success('Access granted. Authenticating...');
         const { accessToken, refreshToken, user } = response.data;
 
-        localStorage.setItem('faculty_token', accessToken);
-        localStorage.setItem('faculty_refresh_token', refreshToken);
-        localStorage.setItem('faculty_user', JSON.stringify(user));
+        // Use the new store which uses sessionStorage
+        login(user, accessToken, refreshToken);
+
+        // Clean up legacy localStorage if exists
+        localStorage.removeItem('faculty_token');
+        localStorage.removeItem('faculty_refresh_token');
+        localStorage.removeItem('faculty_user');
 
         navigate('/faculty-dashboard');
       }

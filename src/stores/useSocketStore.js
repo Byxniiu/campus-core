@@ -1,41 +1,47 @@
 import { create } from 'zustand';
 import { io } from 'socket.io-client';
 
+/**
+ * Zustand store that manages a single Socket.IO connection.
+ * Wraps connect / disconnect / emit / on / off in a tidy API.
+ */
 export const useSocketStore = create((set, get) => ({
-  // State
   socket: null,
   isConnected: false,
 
-  // Actions
+  /** Connect (or re-connect) with the given JWT token */
   connect: (token) => {
-    // Disconnect existing socket if any
-    const existingSocket = get().socket;
-    if (existingSocket) {
-      existingSocket.disconnect();
-    }
+    // Reuse existing connected socket
+    const existing = get().socket;
+    if (existing && existing.connected) return existing;
 
-    // Create new socket connection
-    const socket = io(
-      import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3000',
-      {
-        auth: { token },
-        transports: ['websocket', 'polling'],
-      }
+    // Disconnect stale socket if any
+    if (existing) existing.disconnect();
+
+    const serverUrl = (import.meta.env.VITE_API_URL || 'http://localhost:3000/api').replace(
+      '/api',
+      ''
     );
 
-    // Connection event handlers
+    const socket = io(serverUrl, {
+      auth: { token },
+      transports: ['websocket', 'polling'],
+      reconnectionAttempts: 5,
+      reconnectionDelay: 2000,
+    });
+
     socket.on('connect', () => {
-      console.log(' Socket connected:', socket.id);
+      console.log('[socket] connected:', socket.id);
       set({ isConnected: true });
     });
 
-    socket.on('disconnect', () => {
-      console.log(' Socket disconnected');
+    socket.on('disconnect', (reason) => {
+      console.log('[socket] disconnected:', reason);
       set({ isConnected: false });
     });
 
-    socket.on('connect_error', (error) => {
-      console.error('Socket connection error:', error);
+    socket.on('connect_error', (err) => {
+      console.error('[socket] connect error:', err.message);
       set({ isConnected: false });
     });
 
@@ -43,6 +49,7 @@ export const useSocketStore = create((set, get) => ({
     return socket;
   },
 
+  /** Cleanly disconnect and reset */
   disconnect: () => {
     const socket = get().socket;
     if (socket) {
@@ -51,27 +58,21 @@ export const useSocketStore = create((set, get) => ({
     }
   },
 
-  // Emit event
+  /** Emit an event (no-op if not connected) */
   emit: (event, data) => {
-    const socket = get().socket;
-    if (socket && get().isConnected) {
-      socket.emit(event, data);
-    }
+    const { socket, isConnected } = get();
+    if (socket && isConnected) socket.emit(event, data);
   },
 
-  // Listen to event
-  on: (event, callback) => {
-    const socket = get().socket;
-    if (socket) {
-      socket.on(event, callback);
-    }
+  /** Register a listener */
+  on: (event, cb) => {
+    const { socket } = get();
+    if (socket) socket.on(event, cb);
   },
 
-  // Remove event listener
-  off: (event, callback) => {
-    const socket = get().socket;
-    if (socket) {
-      socket.off(event, callback);
-    }
+  /** Remove a listener */
+  off: (event, cb) => {
+    const { socket } = get();
+    if (socket) socket.off(event, cb);
   },
 }));

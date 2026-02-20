@@ -59,8 +59,23 @@ client.interceptors.request.use(
 
     // 3. Faculty Priority
     if (!token && isPageFaculty) {
-      token = localStorage.getItem('faculty_token');
-      tokenSource = 'faculty_token';
+      // Read from localStorage (faculty-auth-storage from Zustand persist)
+      const facultyAuth = localStorage.getItem('faculty-auth-storage');
+      if (facultyAuth) {
+        try {
+          const parsed = JSON.parse(facultyAuth);
+          token = parsed.state?.token || parsed.state?.accessToken;
+          tokenSource = 'faculty-auth-storage';
+        } catch (e) {
+          console.error('[API_CONTEXT] Failed to parse faculty auth storage', e);
+        }
+      }
+
+      // Fallback to legacy localStorage key
+      if (!token) {
+        token = localStorage.getItem('faculty_token');
+        tokenSource = 'faculty_token (legacy)';
+      }
     }
 
     // 4. Student Fallback (ONLY if not in a privileged page)
@@ -89,8 +104,8 @@ client.interceptors.request.use(
     if (!token) {
       const keys =
         isPageAdmin || isPageCounselor || isPageStaff || isApiAdmin
-          ? ['admin-auth', 'auth-storage', 'faculty_token']
-          : ['student-auth', 'auth-storage', 'admin-auth'];
+          ? ['admin-auth', 'auth-storage', 'faculty-auth-storage', 'faculty_token']
+          : ['student-auth', 'auth-storage', 'admin-auth', 'faculty-auth-storage'];
 
       for (const key of keys) {
         const val = localStorage.getItem(key);
