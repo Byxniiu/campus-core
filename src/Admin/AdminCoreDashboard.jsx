@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   getAllStudents,
@@ -23,13 +23,114 @@ import AddCounselorModal from './AddCounselorModal';
 import AddStaffModal from './AddStaffModal';
 import AcceptanceModal from '../Counselors/AcceptanceModal';
 import { counselingAPI } from '../api/counseling';
-import { Calendar, Clock, Plus, User as UserIcon } from 'lucide-react';
+import { sosAPI } from '../api/sos';
+import {
+  Calendar,
+  Clock,
+  Plus,
+  User as UserIcon,
+  MapPin,
+  Bell,
+  Radio,
+  X,
+  CheckCircle2,
+  ShieldAlert,
+} from 'lucide-react';
+import { useSocketStore } from '../stores/useSocketStore';
 import ProfileManager from '../components/profile/ProfileManager';
 
 const AdminCoreDashboard = () => {
   const navigate = useNavigate();
   const logout = useAdminAuthStore((state) => state.logout);
   const user = useAdminAuthStore((state) => state.user);
+  const token = useAdminAuthStore((state) => state.token);
+  const { socket, connect } = useSocketStore();
+
+  // Ref-based Audio to ensure it survives re-renders and is accessible in callbacks
+  const sirenRef = useRef(null);
+  const [isSoundEnabled, setIsSoundEnabled] = useState(false);
+  const [isSirenPlaying, setIsSirenPlaying] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      if (sirenRef.current) {
+        sirenRef.current.pause();
+        sirenRef.current = null;
+      }
+    };
+  }, []);
+  const testSiren = () => {
+    // List of potential siren URLs (Prioritize local file for zero-failure reliability)
+    const soundUrls = [
+      '/preview.mp3', // Actual file in public folder
+      '/siren.mp3', // Alternative local name
+      'https://upload.wikimedia.org/wikipedia/commons/b/b3/Emergency_Siren.mp3',
+      'https://www.soundjay.com/misc/sounds/ambulance-siren-01.mp3',
+    ];
+
+    let currentUrlIndex = 0;
+
+    const attemptPlay = (url) => {
+      console.log(`[Audio] Syncing node with signal: ${url}`);
+      const newSiren = new Audio(url);
+      newSiren.crossOrigin = 'anonymous'; // Bypass potential CORS filtering
+      newSiren.loop = true;
+      newSiren.volume = 0.5;
+
+      // Force load to verify connectivity
+      newSiren.load();
+
+      newSiren
+        .play()
+        .then(() => {
+          console.log('[Audio] Safety protocol established successfully');
+          if (sirenRef.current) sirenRef.current.pause();
+          sirenRef.current = newSiren;
+
+          toast.success('Emergency audio system synchronized');
+          setIsSoundEnabled(true);
+          setIsSirenPlaying(true);
+
+          // Execute 3-second diagnostic blast
+          setTimeout(() => {
+            const hasPending = data.sos.some(
+              (s) => s.status === 'pending' || s.status === 'acknowledged'
+            );
+            if (!hasPending && sirenRef.current === newSiren) {
+              newSiren.pause();
+              setIsSirenPlaying(false);
+            }
+          }, 3000);
+        })
+        .catch((e) => {
+          console.warn(`[Audio] URL failed: ${url}`, e);
+          currentUrlIndex++;
+          if (currentUrlIndex < soundUrls.length) {
+            attemptPlay(soundUrls[currentUrlIndex]);
+          } else {
+            console.error('[Audio] All siren URLs failed to initialize', e);
+            if (e.name === 'NotAllowedError') {
+              toast.error(
+                'Browser blocked audio. Please click anywhere on the dashboard first, then try again.'
+              );
+            } else {
+              toast.error('Sound system timeout. Please check your internet or try again.');
+            }
+          }
+        });
+    };
+
+    attemptPlay(soundUrls[0]);
+  };
+
+  const silenceAlarm = () => {
+    if (sirenRef.current) {
+      sirenRef.current.pause();
+      sirenRef.current.currentTime = 0;
+    }
+    setIsSirenPlaying(false);
+    toast.success('Alarm silenced');
+  };
 
   const [activePage, setActivePage] = useState(() => {
     if (user?.role === 'counselor') return 'counseling_requests';
@@ -64,6 +165,19 @@ const AdminCoreDashboard = () => {
     timetables: [],
     stats: null,
   });
+
+  // Auto-manage siren based on alert presence
+  useEffect(() => {
+    const hasPendingSOS = data.sos.some(
+      (s) => s.status === 'pending' || s.status === 'acknowledged'
+    );
+    if (isSoundEnabled && hasPendingSOS && !isSirenPlaying && sirenRef.current) {
+      sirenRef.current.play().catch((e) => console.warn('Siren auto-start failed:', e));
+      setIsSirenPlaying(true);
+    } else if (!hasPendingSOS && isSirenPlaying) {
+      silenceAlarm();
+    }
+  }, [data.sos, isSoundEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // --- UI Filter States ---
   const [searchTerm, setSearchTerm] = useState('');
@@ -153,6 +267,65 @@ const AdminCoreDashboard = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (token) connect(token);
+  }, [token, connect]);
+
+  // SOS Real-time Listener
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleNewSOS = (payload) => {
+      const alert = payload.alert || payload;
+      toast.error(`🆘 EMERGENCY: ${alert.student?.firstName} needs assistance!`, {
+        duration: 10000,
+        position: 'top-right',
+        icon: '🆘',
+      });
+
+      // Play siren if enabled and active in background
+      if (isSoundEnabled && sirenRef.current) {
+        sirenRef.current.play().catch((e) => {
+          console.warn('SOS auto-audio failed:', e);
+          if (e.name === 'NotAllowedError') {
+            toast.error(
+              'Browser blocked emergency audio. Please click anywhere to resume safety monitoring.'
+            );
+          }
+        });
+        setIsSirenPlaying(true);
+      } else if (!isSoundEnabled) {
+        // Remind admin that sound is off during an actual emergency
+        toast('Emergency Audio is DISABLED. Enable siren in the SOS tab for auditory alerts.', {
+          icon: '🔇',
+          duration: 6000,
+        });
+      }
+
+      // Update state if unique
+      setData((prev) => {
+        if (prev.sos.some((s) => s._id === alert._id)) return prev;
+
+        return {
+          ...prev,
+          sos: [alert, ...prev.sos],
+          stats: prev.stats
+            ? {
+                ...prev.stats,
+                requests: {
+                  ...prev.stats.requests,
+                  sos: (prev.stats.requests.sos || 0) + 1,
+                },
+              }
+            : prev.stats,
+        };
+      });
+    };
+
+    socket.on('sos:new-alert', handleNewSOS);
+    return () => socket.off('sos:new-alert', handleNewSOS);
+  }, [socket, isSoundEnabled]);
 
   useEffect(() => {
     if (
@@ -325,6 +498,35 @@ Please bring your student ID. All discussions will remain strictly confidential.
     }
   };
 
+  const handleResolveSOS = async (id) => {
+    try {
+      const response = await sosAPI.updateStatus(id, 'resolved', 'Resolved via Admin Dashboard');
+      if (response.success) {
+        toast.success('SOS alert resolved');
+
+        // Update local state
+        setData((prev) => {
+          const updatedSOS = prev.sos.map((alert) =>
+            alert._id === id ? { ...alert, status: 'resolved' } : alert
+          );
+
+          // Check if any pending alerts remain
+          const hasPending = updatedSOS.some((s) => s.status === 'pending');
+          if (!hasPending && isSirenPlaying) {
+            silenceAlarm();
+          }
+
+          return { ...prev, sos: updatedSOS };
+        });
+
+        // Update stats
+        fetchData('dashboard');
+      }
+    } catch (error) {
+      toast.error(error.message || 'Failed to resolve alert');
+    }
+  };
+
   const formatSidebarLabel = (key) => {
     const labels = {
       dashboard: 'DASHBOARD',
@@ -487,7 +689,7 @@ Please bring your student ID. All discussions will remain strictly confidential.
             />
           </div>
         ) : (
-          <>
+          <div className="admin-page-content">
             <header className="mb-10">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-3xl font-black text-blue-950 capitalize tracking-tighter">
@@ -959,87 +1161,203 @@ Please bring your student ID. All discussions will remain strictly confidential.
 
             {/* --- SOS ALERTS VIEW --- */}
             {activePage === 'sos' && (
-              <div className="grid gap-6">
-                {loading ? (
-                  <div className="flex flex-col items-center py-20">
-                    <div className="w-10 h-10 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin mb-4"></div>
-                    <span className="font-bold tracking-widest uppercase text-[10px] text-slate-400">
-                      Loading SOS alerts...
-                    </span>
-                  </div>
-                ) : data.sos.length === 0 ? (
-                  <div className="text-center py-20 text-slate-500 font-bold uppercase tracking-widest text-[10px]">
-                    No SOS alerts found
-                  </div>
-                ) : (
-                  data.sos.map((alert) => (
+              <div className="space-y-6">
+                <div className="bg-blue-50 border border-blue-100 rounded-3xl p-6 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
                     <div
-                      key={alert._id}
-                      className={`border-l-4 bg-white border-slate-200 rounded-r-2xl p-6 hover:shadow-lg transition-all cursor-pointer group ${
-                        alert.priority === 'critical'
-                          ? 'border-l-red-500'
-                          : alert.priority === 'high'
-                            ? 'border-l-orange-500'
-                            : alert.priority === 'medium'
-                              ? 'border-l-yellow-500'
-                              : 'border-l-blue-500'
+                      className={`p-3 rounded-2xl ${isSirenPlaying ? 'bg-red-100 text-red-600 animate-pulse' : isSoundEnabled ? 'bg-emerald-100 text-emerald-600' : 'bg-blue-100 text-blue-600'}`}
+                    >
+                      {isSirenPlaying ? (
+                        <Radio size={24} />
+                      ) : (
+                        <Bell size={24} className={isSoundEnabled ? '' : 'animate-bounce'} />
+                      )}
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-black text-blue-950 uppercase tracking-tighter">
+                        {isSirenPlaying ? 'CRITICAL EMERGENCY ACTIVE' : 'Emergency Audio Protocol'}
+                      </h4>
+                      <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">
+                        {isSirenPlaying
+                          ? 'Institutional alarm is currently broadcasting'
+                          : isSoundEnabled
+                            ? 'Audio System Operational'
+                            : 'Action Required: Enable siren for real-time alerts'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    {isSirenPlaying && (
+                      <button
+                        onClick={silenceAlarm}
+                        className="px-6 py-3 bg-red-600 text-white rounded-xl text-[10px] font-black uppercase tracking-[0.1em] hover:bg-red-500 transition-all shadow-lg active:scale-95 flex items-center gap-2"
+                      >
+                        <X size={14} /> Silence Alarm
+                      </button>
+                    )}
+                    <button
+                      onClick={testSiren}
+                      className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.1em] transition-all shadow-lg active:scale-95 ${
+                        isSoundEnabled
+                          ? 'bg-blue-950 text-white hover:bg-teal-600'
+                          : 'bg-blue-600 text-white hover:bg-blue-500'
                       }`}
                     >
-                      <div className="flex justify-between items-start mb-4">
-                        <div>
-                          <div className="flex items-center gap-3 mb-2">
-                            <h3 className="text-lg font-black text-blue-900 group-hover:text-blue-600">
-                              {alert.student?.firstName} {alert.student?.lastName}
-                            </h3>
-                            <span className="text-xs text-slate-400">
-                              ({alert.student?.studentId})
+                      {isSoundEnabled ? 'Test Alarm System' : 'Enable Emergency Siren'}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid gap-6">
+                  {loading ? (
+                    <div className="flex flex-col items-center py-20">
+                      <div className="w-10 h-10 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin mb-4"></div>
+                      <span className="font-bold tracking-widest uppercase text-[10px] text-slate-400">
+                        Loading SOS alerts...
+                      </span>
+                    </div>
+                  ) : data.sos.length === 0 ? (
+                    <div className="text-center py-20 text-slate-500 font-bold uppercase tracking-widest text-[10px]">
+                      No SOS alerts found
+                    </div>
+                  ) : (
+                    data.sos.map((alert) => (
+                      <div
+                        key={alert._id}
+                        className={`bg-white border-2 ${alert.priority === 'critical' ? 'border-red-500 animate-pulse' : 'border-slate-200'} rounded-[2.5rem] p-8 hover:shadow-2xl transition-all group relative overflow-hidden`}
+                      >
+                        {alert.priority === 'critical' && (
+                          <div className="absolute top-0 right-0 p-4">
+                            <Radio className="text-red-500 animate-ping" size={24} />
+                          </div>
+                        )}
+                        <div className="flex justify-between items-start mb-6">
+                          <div className="flex items-center gap-4">
+                            <div className="w-14 h-14 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center text-xl font-bold text-blue-900 overflow-hidden shadow-inner">
+                              {alert.student?.avatar ? (
+                                <img
+                                  src={`http://localhost:3000${alert.student.avatar}`}
+                                  className="w-full h-full object-cover"
+                                  alt="pfp"
+                                />
+                              ) : (
+                                (alert.student?.firstName || 'U').charAt(0)
+                              )}
+                            </div>
+                            <div>
+                              <h3 className="text-xl font-black text-blue-950 uppercase italic tracking-tighter">
+                                {alert.student?.firstName} {alert.student?.lastName}
+                              </h3>
+                              <div className="flex items-center gap-2 mt-1">
+                                <p className="text-[10px] font-black text-teal-600 uppercase tracking-widest px-2 py-0.5 bg-teal-50 rounded">
+                                  {alert.type}
+                                </p>
+                                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                                  • {alert.student?.studentId}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-end gap-2">
+                            <span
+                              className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border ${
+                                alert.status === 'resolved'
+                                  ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                                  : 'bg-red-50 text-red-600 border-red-100'
+                              }`}
+                            >
+                              {alert.status}
                             </span>
-                            <span className="text-[10px] text-slate-500 font-mono">
-                              {alert.student?.email}
+                            <span
+                              className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter ${
+                                alert.priority === 'critical'
+                                  ? 'bg-red-600 text-white shadow-lg shadow-red-200'
+                                  : alert.priority === 'high'
+                                    ? 'bg-orange-500 text-white'
+                                    : 'bg-blue-500 text-white'
+                              }`}
+                            >
+                              {alert.priority} Priority
                             </span>
                           </div>
-                          <p className="text-xs text-slate-400 uppercase tracking-widest">
-                            {alert.type}
+                        </div>
+
+                        <div className="bg-slate-50/50 rounded-3xl p-6 mb-6 border border-slate-100">
+                          <p className="text-sm text-slate-700 font-medium leading-relaxed italic">
+                            "{alert.description}"
                           </p>
                         </div>
-                        <div className="flex flex-col items-end gap-2">
-                          <span
-                            className={`px-3 py-1 rounded-full text-[9px] font-black uppercase ${
-                              alert.status === 'resolved'
-                                ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
-                                : alert.status === 'in-progress'
-                                  ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20'
-                                  : alert.status === 'acknowledged'
-                                    ? 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20'
-                                    : 'bg-red-500/10 text-red-500 border border-red-500/20'
-                            }`}
-                          >
-                            {alert.status}
-                          </span>
-                          <span
-                            className={`px-2 py-1 rounded text-[8px] font-black uppercase ${
-                              alert.priority === 'critical'
-                                ? 'bg-red-600 text-white'
-                                : alert.priority === 'high'
-                                  ? 'bg-orange-500 text-white'
-                                  : alert.priority === 'medium'
-                                    ? 'bg-yellow-600 text-white'
-                                    : 'bg-blue-500 text-white'
-                            }`}
-                          >
-                            {alert.priority}
-                          </span>
+
+                        <div className="flex flex-wrap items-start justify-between gap-4 pt-4 border-t border-slate-50">
+                          <div className="flex flex-col gap-3">
+                            <div className="flex flex-wrap items-center gap-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                              <span className="flex items-center gap-2 text-blue-950 bg-blue-50 px-3 py-1.5 rounded-full border border-blue-100">
+                                🏢 {alert.location?.building || 'Main Campus'}
+                              </span>
+                              <span>⏰ {new Date(alert.createdAt).toLocaleString()}</span>
+                              {alert.location?.latitude || alert.location?.lat ? (
+                                <span className="flex items-center gap-2 text-teal-600 bg-teal-50 px-3 py-1.5 rounded-full border border-teal-100">
+                                  <Radio size={12} className="animate-pulse" /> GPS Uplink Active
+                                </span>
+                              ) : (
+                                <span className="text-slate-400 italic">No GPS data</span>
+                              )}
+                            </div>
+                            {alert.location?.address && (
+                              <div className="bg-slate-50 p-4 rounded-2xl border border-dotted border-slate-200">
+                                <p className="text-[9px] text-slate-400 font-black uppercase mb-1">
+                                  Precise Location Address
+                                </p>
+                                <p className="text-sm font-bold text-slate-600">
+                                  📍 {alert.location.address}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex gap-3">
+                            {alert.status === 'pending' && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleResolveSOS(alert._id);
+                                }}
+                                className="flex items-center gap-2 bg-emerald-600 text-white px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500 transition-all shadow-lg active:scale-95"
+                              >
+                                <CheckCircle2 size={14} />
+                                Resolve
+                              </button>
+                            )}
+                            {(alert.location?.latitude || alert.location?.lat) && (
+                              <button
+                                onClick={() => {
+                                  const lat = alert.location.latitude || alert.location.lat;
+                                  const lng = alert.location.longitude || alert.location.lng;
+                                  window.open(
+                                    `https://www.google.com/maps?q=${lat},${lng}`,
+                                    '_blank'
+                                  );
+                                }}
+                                className="flex items-center gap-2 bg-blue-950 text-white px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-teal-600 transition-all shadow-lg active:scale-95"
+                              >
+                                <MapPin size={14} />
+                                Open Live Map
+                              </button>
+                            )}
+                            <button
+                              onClick={() =>
+                                setSelectedPerson({ ...alert.student, sosAlert: alert })
+                              }
+                              className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all"
+                            >
+                              Details
+                            </button>
+                          </div>
                         </div>
                       </div>
-                      <p className="text-sm text-slate-600 mb-4">{alert.description}</p>
-                      <div className="flex items-center gap-6 text-xs text-slate-500">
-                        {alert.location?.building && <span>🏢 {alert.location.building}</span>}
-                        {alert.location?.room && <span>🚪 {alert.location.room}</span>}
-                        <span>⏰ {new Date(alert.createdAt).toLocaleString()}</span>
-                      </div>
-                    </div>
-                  ))
-                )}
+                    ))
+                  )}
+                </div>
               </div>
             )}
 
@@ -1369,7 +1687,7 @@ Please bring your student ID. All discussions will remain strictly confidential.
 
             {/* --- PENDING APPROVALS VIEW --- */}
             {activePage === 'pending_approvals' && <PendingFacultyApprovals />}
-          </>
+          </div>
         )}
       </main>
       {selectedPerson && (
@@ -1444,8 +1762,8 @@ Please bring your student ID. All discussions will remain strictly confidential.
                 )}
               </div>
 
-              {selectedPerson.role === 'student' && (
-                <div className="mt-4 p-5 bg-indigo-50/50 rounded-[2rem] border border-indigo-100 space-y-4">
+              <div className="mt-4 space-y-4">
+                <div className="p-5 bg-indigo-50/50 rounded-[2rem] border border-indigo-100 space-y-4">
                   <p className="text-[10px] text-indigo-600 font-black uppercase tracking-widest">
                     Academic Record
                   </p>
@@ -1480,7 +1798,61 @@ Please bring your student ID. All discussions will remain strictly confidential.
                     </div>
                   </div>
                 </div>
-              )}
+
+                {selectedPerson.sosAlert && (
+                  <div className="p-6 bg-red-50 border-2 border-red-100 rounded-[2.5rem] space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-red-500 text-white rounded-lg animate-pulse">
+                        <ShieldAlert size={16} />
+                      </div>
+                      <p className="text-[10px] text-red-600 font-black uppercase tracking-[0.2em]">
+                        LATEST SOS GEOLOCATION
+                      </p>
+                    </div>
+
+                    <div className="bg-white p-5 rounded-3xl border border-red-50 shadow-sm space-y-3">
+                      <div>
+                        <p className="text-[8px] text-slate-400 font-black uppercase mb-1">
+                          Anchor Building
+                        </p>
+                        <p className="text-xs font-black text-blue-950 flex items-center gap-2 uppercase">
+                          🏢 {selectedPerson.sosAlert.location?.building || 'Institutional Hub'}
+                        </p>
+                      </div>
+
+                      <div className="pt-2 border-t border-slate-50">
+                        <p className="text-[8px] text-slate-400 font-black uppercase mb-1">
+                          Broadcasted Address
+                        </p>
+                        <p className="text-xs font-bold text-slate-600 leading-relaxed italic">
+                          📍 {selectedPerson.sosAlert.location?.address || 'Generic Campus Signal'}
+                        </p>
+                      </div>
+
+                      {(selectedPerson.sosAlert.location?.latitude ||
+                        selectedPerson.sosAlert.location?.lat) && (
+                        <div className="pt-3">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const lat =
+                                selectedPerson.sosAlert.location.latitude ||
+                                selectedPerson.sosAlert.location.lat;
+                              const lng =
+                                selectedPerson.sosAlert.location.longitude ||
+                                selectedPerson.sosAlert.location.lng;
+                              window.open(`https://www.google.com/maps?q=${lat},${lng}`, '_blank');
+                            }}
+                            className="w-full py-3 bg-blue-950 text-white rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-teal-600 transition-all flex items-center justify-center gap-2"
+                          >
+                            <MapPin size={12} /> OPEN IN GOOGLE MAPS
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {selectedPerson.role === 'faculty' && (
                 <div className="mt-4 p-5 bg-blue-50/50 rounded-[2rem] border border-blue-100 space-y-4">
