@@ -36,7 +36,7 @@ const StaffHomepage = () => {
       setLoading(true);
       const res = await helpRequestAPI.getMyRequests();
       if (res.success) {
-        setRequests(res.data.requests || []);
+        setRequests(res.data || []);
       }
     } catch (error) {
       console.error('Fetch error:', error);

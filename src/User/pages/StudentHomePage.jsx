@@ -75,7 +75,11 @@ const StudentHomePage = () => {
       icon: <Users size={20} />,
       tooltip: 'Expert Mental Health & Career Support',
     },
-    { id: 'Staff', icon: <UserCircle size={20} />, tooltip: 'Non-Teaching Support Personnel Hub' },
+    {
+      id: 'Administrative',
+      icon: <UserCircle size={20} />,
+      tooltip: 'Institutional Support & Administrative Hub',
+    },
     {
       id: 'Academic',
       icon: <BookOpen size={20} />,
@@ -83,7 +87,7 @@ const StudentHomePage = () => {
     },
     { id: 'Schedule', icon: <Clock size={20} />, tooltip: 'Personal Timetable & Weekly Routine' },
     {
-      id: 'Requests',
+      id: 'Request Log',
       icon: <FileText size={20} />,
       tooltip: 'My Submitted Institutional Requests',
     },
@@ -99,11 +103,11 @@ const StudentHomePage = () => {
         return <EventsTab />;
       case 'Counseling':
         return <CounselorsTab />;
-      case 'Staff':
+      case 'Administrative':
         return <StaffTab />;
       case 'My Profile':
         return <ProfileTab />;
-      case 'Requests':
+      case 'Request Log':
         return <MyRequestsTab />;
       case 'Academic':
         return <StudyMaterialsTab />;
@@ -171,15 +175,6 @@ const StudentHomePage = () => {
 
         {/* RIGHT ACTIONS */}
         <div className="flex items-center gap-6">
-          {/* Notifications */}
-          <button
-            title="Pulse Notifications & System Alerts"
-            className="relative p-2.5 text-slate-400 hover:text-blue-600 hover:bg-white rounded-xl transition-all"
-          >
-            <Bell size={20} />
-            <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
-          </button>
-
           <div className="h-8 w-[1px] bg-slate-200 hidden sm:block"></div>
 
           {/* User Profile */}

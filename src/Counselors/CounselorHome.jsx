@@ -4,6 +4,7 @@ import { counselingAPI } from '../api/counseling';
 import { useAuthStore } from '../stores/useAuthStore';
 import toast from 'react-hot-toast';
 import AcceptanceModal from './AcceptanceModal';
+import RejectionModal from './RejectionModal';
 import ProfileManager from '../components/profile/ProfileManager';
 import {
   CheckCircle2,
@@ -25,6 +26,7 @@ const CounselorHome = () => {
   const [activeTab, setActiveTab] = useState('pending');
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [showAcceptanceModal, setShowAcceptanceModal] = useState(false);
+  const [showRejectionModal, setShowRejectionModal] = useState(false);
   const [requests, setRequests] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -59,21 +61,38 @@ const CounselorHome = () => {
   };
 
   const handleAcceptClick = () => {
+    // Pre-populate with student's preference if available
+    let initialDate = '';
+    if (selectedRequest?.preferredDate) {
+      // Create a date object and format it for datetime-local (YYYY-MM-DDTHH:MM)
+      // We use the date part from preferredDate and default to 09:00 AM
+      const d = new Date(selectedRequest.preferredDate);
+      const datePart = d.toISOString().split('T')[0];
+      initialDate = `${datePart}T09:00`;
+    }
+
+    setAcceptanceForm({
+      ...acceptanceForm,
+      assignedSlot: initialDate,
+    });
     setShowAcceptanceModal(true);
   };
 
-  const handleRejectClick = async () => {
-    if (!window.confirm('Are you sure you want to decline this request?')) return;
+  const handleRejectClick = () => {
+    setShowRejectionModal(true);
+  };
 
+  const handleSubmitRejection = async (reason) => {
     setIsUpdating(true);
     try {
       const res = await counselingAPI.manageRequest(selectedRequest._id, {
         status: 'declined',
-        declineReason: 'Request declined by counselor',
+        declineReason: reason,
       });
       if (res.success) {
-        toast.success('Request declined');
+        toast.success('Request declined successfully');
         setSelectedRequest(null);
+        setShowRejectionModal(false);
         fetchRequests();
       }
     } catch (err) {
@@ -370,7 +389,6 @@ const CounselorHome = () => {
         )}
       </main>
 
-      {/* DETAIL OVERLAY & AcceptanceModal - remains as before */}
       {selectedRequest && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 backdrop-blur-xl p-6"
@@ -403,31 +421,90 @@ const CounselorHome = () => {
                 <XCircle size={24} />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto p-10 grid grid-cols-1 lg:grid-cols-2 gap-10">
-              {/* ... existing detail content ... */}
-              <div className="space-y-8">
-                <div>
-                  <h5 className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-4">
-                    Patient Statement
-                  </h5>
-                  <div className="p-6 bg-slate-950/50 rounded-[2rem] border border-slate-800 shadow-inner max-h-48 overflow-y-auto custom-scrollbar">
-                    <p className="text-sm text-slate-300 leading-relaxed font-medium italic">
-                      "{selectedRequest.description}"
-                    </p>
-                  </div>
+            <div className="flex-1 overflow-y-auto p-10 space-y-10">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="p-6 bg-slate-950/50 rounded-[2rem] border border-slate-800">
+                  <p className="text-[10px] text-slate-500 font-black uppercase mb-2 tracking-widest">
+                    Student Credentials
+                  </p>
+                  <p className="text-lg font-bold text-white uppercase">
+                    {selectedRequest.student?.studentId || 'N/A'}
+                  </p>
+                  <p className="text-xs text-slate-400 font-bold mt-1 uppercase tracking-tighter">
+                    {selectedRequest.student?.department} | Semester{' '}
+                    {selectedRequest.student?.semester}
+                  </p>
+                </div>
+                <div className="p-6 bg-slate-950/50 rounded-[2rem] border border-slate-800">
+                  <p className="text-[10px] text-slate-500 font-black uppercase mb-2 tracking-widest">
+                    Secure Contact
+                  </p>
+                  <p className="text-base font-bold text-white">{selectedRequest.student?.email}</p>
+                  <p className="text-xs text-teal-500 font-bold mt-1 tracking-widest">
+                    {selectedRequest.student?.phone || 'No Phone Protocol'}
+                  </p>
                 </div>
               </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                <div className="p-4 bg-indigo-500/10 rounded-3xl border border-indigo-500/20">
+                  <p className="text-[9px] text-indigo-400 font-black uppercase mb-1">Mode</p>
+                  <p className="text-xs font-bold text-white uppercase tracking-tighter">
+                    📡 {selectedRequest.preferredMode}
+                  </p>
+                </div>
+                <div className="p-4 bg-red-500/10 rounded-3xl border border-red-500/20">
+                  <p className="text-[9px] text-red-400 font-black uppercase mb-1">Priority</p>
+                  <p className="text-xs font-bold text-white uppercase tracking-tighter">
+                    ⚠️ {selectedRequest.priority}
+                  </p>
+                </div>
+                <div className="p-4 bg-teal-500/10 rounded-3xl border border-teal-500/20">
+                  <p className="text-[9px] text-teal-400 font-black uppercase mb-1">Requested On</p>
+                  <p className="text-xs font-bold text-white tracking-tighter">
+                    📅 {new Date(selectedRequest.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+                <div className="p-4 bg-orange-500/10 rounded-3xl border border-orange-500/20">
+                  <p className="text-[9px] text-orange-400 font-black uppercase mb-1">
+                    Target Date
+                  </p>
+                  <p className="text-xs font-bold text-white tracking-tighter">
+                    🗓️{' '}
+                    {selectedRequest.preferredDate
+                      ? new Date(selectedRequest.preferredDate).toLocaleDateString('en-GB', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric',
+                          timeZone: 'UTC',
+                        })
+                      : 'Flexible'}
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <h5 className="text-[10px] font-black text-indigo-500 uppercase tracking-widest mb-4">
+                  Patient Statement
+                </h5>
+                <div className="p-8 bg-slate-950/50 rounded-[3rem] border border-slate-800 shadow-inner max-h-72 overflow-y-auto custom-scrollbar">
+                  <p className="text-base text-slate-300 leading-relaxed font-medium italic">
+                    "{selectedRequest.description}"
+                  </p>
+                </div>
+              </div>
+
               {user?.role === 'counselor' && selectedRequest.status === 'pending' && (
-                <div className="space-y-4">
+                <div className="flex gap-4">
                   <button
                     onClick={handleAcceptClick}
-                    className="w-full py-5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-[2rem] font-black text-sm uppercase tracking-wide transition-all"
+                    className="flex-1 py-5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-[2rem] font-black text-sm uppercase tracking-wide transition-all"
                   >
                     Accept Request
                   </button>
                   <button
                     onClick={handleRejectClick}
-                    className="w-full py-5 bg-red-600/20 hover:bg-red-600 border-2 border-red-600 text-red-500 rounded-[2rem] font-black text-sm uppercase tracking-wide transition-all"
+                    className="flex-1 py-5 bg-red-600/20 hover:bg-red-600 border-2 border-red-600 text-red-500 rounded-[2rem] font-black text-sm uppercase tracking-wide transition-all"
                   >
                     Decline Request
                   </button>
@@ -445,6 +522,14 @@ const CounselorHome = () => {
         setAcceptanceForm={setAcceptanceForm}
         onSubmit={handleSubmitAcceptance}
         onAutoGenerate={handleAutoGenerateMessage}
+        isUpdating={isUpdating}
+        selectedRequest={selectedRequest}
+      />
+
+      <RejectionModal
+        isOpen={showRejectionModal}
+        onClose={() => setShowRejectionModal(false)}
+        onSubmit={handleSubmitRejection}
         isUpdating={isUpdating}
       />
     </div>

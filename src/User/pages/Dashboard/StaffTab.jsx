@@ -110,7 +110,7 @@ const StaffTab = () => {
           className="mb-14 text-blue-950/40 hover:text-teal-600 flex items-center gap-3 font-bold text-[10px] uppercase tracking-[0.2em] transition-all group"
         >
           <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" /> Back
-          to Staff Core
+          to Administrative Hub
         </motion.button>
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-12 mb-16">
           <div className="flex gap-10 items-center">
@@ -187,12 +187,23 @@ const StaffTab = () => {
               <label className="text-[10px] font-bold text-blue-950/20 uppercase tracking-[0.3em] ml-2">
                 Preferred Resolution Date
               </label>
-              <input
-                type="date"
-                value={requestData.preferredDate}
-                onChange={(e) => setRequestData({ ...requestData, preferredDate: e.target.value })}
-                className="w-full bg-blue-50/30 border border-teal-100 rounded-2xl px-6 py-3.5 text-blue-950 font-bold outline-none focus:border-teal-400"
-              />
+              <div
+                className="relative cursor-pointer"
+                onClick={(e) => {
+                  const input = e.currentTarget.querySelector('input');
+                  if (input && input.showPicker) input.showPicker();
+                }}
+              >
+                <input
+                  type="date"
+                  value={requestData.preferredDate}
+                  min={new Date().toISOString().split('T')[0]}
+                  onChange={(e) =>
+                    setRequestData({ ...requestData, preferredDate: e.target.value })
+                  }
+                  className="w-full bg-blue-50/30 border border-teal-100 rounded-2xl px-6 py-3.5 text-blue-950 font-bold outline-none focus:border-teal-400 cursor-pointer"
+                />
+              </div>
             </div>
           </div>
 

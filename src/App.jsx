@@ -26,6 +26,7 @@ import FacultyLogin from './Faculty/FacultyLogin';
 import StaffLogin from './Non-Teaching Staff/StaffLogin';
 import StaffHomepage from './Non-Teaching Staff/StaffHomepage';
 import ProtectedRoute from './components/common/ProtectedRoute';
+import StudentProtectedRoute from './components/common/StudentProtectedRoute';
 
 import ToastProvider from './components/common/ToastProvider';
 import Footer from './User/components/footer';
@@ -44,17 +45,89 @@ function App() {
           <Route path="/student-signup" element={<StudentSignUpPage />} />
           <Route path="/student-signin" element={<SignInPage />} />
           <Route path="/otp-verification" element={<OTPVerificationPage />} />
-          <Route path="/student-home-page" element={<StudentHomePage />} />
-          <Route path="/event-news" element={<EventCalendarPage />} />
-          <Route path="/class-schedule" element={<ClassSchedulePage />} />
-          <Route path="/emergency-assist" element={<EmergencyAssistPage />} />
-          <Route path="/counseling-form" element={<CounselingForm />} />
-          <Route path="/counseling-stats" element={<CounselingStats />} />
-          <Route path="/sos-system" element={<SOSSystem />} />
 
-          <Route path="study-pod-list" element={<StudyPods />} />
-          <Route path="/study-pod-create" element={<StudyPodCreate />} />
-          <Route path="/study-materials" element={<StudyMaterials />} />
+          {/* Protected Student Routes */}
+          <Route
+            path="/student-home-page"
+            element={
+              <StudentProtectedRoute>
+                <StudentHomePage />
+              </StudentProtectedRoute>
+            }
+          />
+          <Route
+            path="/event-news"
+            element={
+              <StudentProtectedRoute>
+                <EventCalendarPage />
+              </StudentProtectedRoute>
+            }
+          />
+          <Route
+            path="/class-schedule"
+            element={
+              <StudentProtectedRoute>
+                <ClassSchedulePage />
+              </StudentProtectedRoute>
+            }
+          />
+          <Route
+            path="/emergency-assist"
+            element={
+              <StudentProtectedRoute>
+                <EmergencyAssistPage />
+              </StudentProtectedRoute>
+            }
+          />
+          <Route
+            path="/counseling-form"
+            element={
+              <StudentProtectedRoute>
+                <CounselingForm />
+              </StudentProtectedRoute>
+            }
+          />
+          <Route
+            path="/counseling-stats"
+            element={
+              <StudentProtectedRoute>
+                <CounselingStats />
+              </StudentProtectedRoute>
+            }
+          />
+          <Route
+            path="/sos-system"
+            element={
+              <StudentProtectedRoute>
+                <SOSSystem />
+              </StudentProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/study-pod-list"
+            element={
+              <StudentProtectedRoute>
+                <StudyPods />
+              </StudentProtectedRoute>
+            }
+          />
+          <Route
+            path="/study-pod-create"
+            element={
+              <StudentProtectedRoute>
+                <StudyPodCreate />
+              </StudentProtectedRoute>
+            }
+          />
+          <Route
+            path="/study-materials"
+            element={
+              <StudentProtectedRoute>
+                <StudyMaterials />
+              </StudentProtectedRoute>
+            }
+          />
 
           {/*ADMIN*/}
           <Route path="/admin-login" element={<AdminLogin />} />

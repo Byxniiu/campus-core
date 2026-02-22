@@ -198,24 +198,39 @@ const EventsTab = () => {
               </p>
             </div>
           </motion.div>
+
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="p-6 bg-blue-50/50 rounded-[32px] flex items-center gap-5 border border-teal-50 shadow-sm"
+            className="p-6 bg-blue-50/50 rounded-[32px] flex items-center gap-5 border border-teal-50 shadow-sm overflow-hidden"
           >
-            <div className="bg-white p-4 rounded-2xl shadow-md text-teal-400 border border-teal-50">
-              <Clock size={24} />
+            {/* Calendar Leaf Styled Visual */}
+            <div className="bg-white rounded-2xl shadow-xl border border-teal-50 overflow-hidden min-w-[80px] flex flex-col items-center">
+              <div className="bg-red-500 w-full py-1 text-center">
+                <span className="text-[8px] font-black text-white uppercase tracking-widest leading-none">
+                  {new Date(selectedItem.startDate).toLocaleDateString('en-US', { month: 'short' })}
+                </span>
+              </div>
+              <div className="p-3 text-center">
+                <span className="text-2xl font-outfit font-black text-blue-950 leading-none">
+                  {new Date(selectedItem.startDate).getDate()}
+                </span>
+                <p className="text-[8px] font-bold text-slate-400 uppercase tracking-tight mt-0.5">
+                  {new Date(selectedItem.startDate).getFullYear()}
+                </p>
+              </div>
             </div>
+
             <div>
               <p className="text-[9px] text-blue-950/30 font-bold uppercase tracking-[0.2em] mb-1">
-                Date & Time
+                Event Schedule
               </p>
               <p className="font-bold text-blue-950 text-lg tracking-tight leading-tight">
-                {formatDate(selectedItem.startDate)}
-              </p>
-              <p className="text-xs text-blue-950/60 font-semibold">
                 {formatTime(selectedItem.startDate)}
+              </p>
+              <p className="text-xs text-blue-950/60 font-semibold tracking-wide mt-0.5">
+                Institutional Sync Active
               </p>
             </div>
           </motion.div>

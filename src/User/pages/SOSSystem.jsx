@@ -58,25 +58,6 @@ const SOSSystem = () => {
     );
   };
 
-  // Logic for "Hold to Trigger" (3 seconds)
-  useEffect(() => {
-    let interval;
-    if (isHolding && progress < 100) {
-      interval = setInterval(() => {
-        setProgress((prev) => prev + 2.5);
-      }, 30);
-    } else if (progress >= 100) {
-      clearInterval(interval);
-      setProgress(0);
-      setIsHolding(false);
-      triggerSOS();
-    } else {
-      setProgress(0);
-      clearInterval(interval);
-    }
-    return () => clearInterval(interval);
-  }, [isHolding, progress, triggerSOS]);
-
   const triggerSOS = useCallback(async () => {
     let locationData = {
       address:
@@ -136,6 +117,25 @@ const SOSSystem = () => {
       if (sirenRef.current) sirenRef.current.pause();
     }
   }, [coords, isAudioMuted]);
+
+  // Logic for "Hold to Trigger" (3 seconds)
+  useEffect(() => {
+    let interval;
+    if (isHolding && progress < 100) {
+      interval = setInterval(() => {
+        setProgress((prev) => prev + 2.5);
+      }, 30);
+    } else if (progress >= 100) {
+      clearInterval(interval);
+      setProgress(0);
+      setIsHolding(false);
+      triggerSOS();
+    } else {
+      setProgress(0);
+      clearInterval(interval);
+    }
+    return () => clearInterval(interval);
+  }, [isHolding, progress, triggerSOS]);
 
   return (
     <div className="min-h-screen bg-blue-950 flex flex-col items-center justify-center p-8 relative overflow-hidden font-jakarta">

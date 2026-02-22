@@ -35,7 +35,7 @@ const MyRequestsTab = () => {
         const res = await helpRequestAPI.getMyRequests();
         console.log('[TAB] Help requests response:', res);
         if (res.success) {
-          setHelpRequests(res.data.requests || []);
+          setHelpRequests(res.data || []);
         } else {
           toast.error('Failed to load help requests');
         }
@@ -283,7 +283,7 @@ const MyRequestsTab = () => {
                       )}
                     </div>
                     <div>
-                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                      <p className="text-[12px] font-black text-slate-400 uppercase tracking-widest">
                         {activeSubTab === 'Administrative'
                           ? 'Assigned Official'
                           : 'Assigned Counselor'}
@@ -387,7 +387,7 @@ const MyRequestsTab = () => {
                             size={14}
                             className="text-teal-500 group-hover:scale-110 transition-transform"
                           />
-                          <span className="text-[9px] font-black text-blue-950 uppercase tracking-widest">
+                          <span className="text-[12px] font-black text-blue-950 uppercase tracking-widest">
                             File_{idx + 1}
                           </span>
                         </a>
@@ -398,28 +398,41 @@ const MyRequestsTab = () => {
 
                 {(selectedRequest.staffMessage ||
                   selectedRequest.staffContact ||
-                  selectedRequest.counselorResponse) && (
-                  <div className="p-8 bg-teal-50/50 rounded-[2rem] border border-teal-100 space-y-4">
-                    {console.log('[STUDENT VIEW] selectedRequest:', selectedRequest)}
-                    {console.log(
-                      '[STUDENT VIEW] counselorResponse:',
-                      selectedRequest.counselorResponse
-                    )}
-                    {console.log('[STUDENT VIEW] staffMessage:', selectedRequest.staffMessage)}
+                  selectedRequest.counselorResponse ||
+                  selectedRequest.declineReason) && (
+                  <div
+                    className={`p-8 rounded-[2rem] border space-y-4 ${['declined', 'Rejected'].includes(selectedRequest.status) ? 'bg-red-50/50 border-red-100' : 'bg-teal-50/50 border-teal-100'}`}
+                  >
                     <div className="flex items-center gap-3">
-                      <CheckCircle size={18} className="text-teal-500" />
-                      <p className="text-[10px] font-black text-teal-600 uppercase tracking-widest">
-                        {activeSubTab === 'Administrative'
-                          ? 'Official Support Feedback'
-                          : 'Professional Consultation Notes'}
+                      {['declined', 'Rejected'].includes(selectedRequest.status) ? (
+                        <AlertTriangle size={18} className="text-red-500" />
+                      ) : (
+                        <CheckCircle size={18} className="text-teal-500" />
+                      )}
+                      <p
+                        className={`text-[10px] font-black uppercase tracking-widest ${['declined', 'Rejected'].includes(selectedRequest.status) ? 'text-red-600' : 'text-teal-600'}`}
+                      >
+                        {['declined', 'Rejected'].includes(selectedRequest.status)
+                          ? 'Decline Rationale'
+                          : activeSubTab === 'Administrative'
+                            ? 'Official Support Feedback'
+                            : 'Professional Consultation Notes'}
                       </p>
                     </div>
 
-                    {(selectedRequest.staffMessage || selectedRequest.counselorResponse) && (
+                    {(selectedRequest.staffMessage ||
+                      selectedRequest.counselorResponse ||
+                      selectedRequest.declineReason) && (
                       <div className="space-y-4">
-                        <div className="bg-white/60 p-6 rounded-2xl border border-teal-100 shadow-inner">
-                          <p className="text-blue-950 text-sm font-medium leading-relaxed whitespace-pre-line">
-                            {selectedRequest.staffMessage || selectedRequest.counselorResponse}
+                        <div
+                          className={`p-6 rounded-2xl border shadow-inner ${['declined', 'Rejected'].includes(selectedRequest.status) ? 'bg-white/60 border-red-100' : 'bg-white/60 border-teal-100'}`}
+                        >
+                          <p
+                            className={`text-sm font-medium leading-relaxed whitespace-pre-line ${['declined', 'Rejected'].includes(selectedRequest.status) ? 'text-red-900' : 'text-blue-950'}`}
+                          >
+                            {selectedRequest.staffMessage ||
+                              selectedRequest.counselorResponse ||
+                              selectedRequest.declineReason}
                           </p>
                         </div>
                       </div>

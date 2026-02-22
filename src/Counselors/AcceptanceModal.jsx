@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, MapPin, LinkIcon, MessageSquare, Send } from 'lucide-react';
+import { Calendar, Clock, MapPin, MessageSquare, Send } from 'lucide-react';
 
 const AcceptanceModal = ({
   isOpen,
@@ -9,6 +9,7 @@ const AcceptanceModal = ({
   onSubmit,
   onAutoGenerate,
   isUpdating,
+  selectedRequest,
 }) => {
   console.log('[ACCEPTANCE MODAL] Rendered. isOpen:', isOpen);
 
@@ -55,6 +56,38 @@ const AcceptanceModal = ({
           onSubmit={onSubmit}
           className="p-8 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar"
         >
+          {/* Student's Preference Display */}
+          {selectedRequest && (selectedRequest.preferredDate || selectedRequest.preferredSlot) && (
+            <div className="bg-blue-50/50 border border-blue-100 rounded-3xl p-6 mb-2">
+              <h5 className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                <Clock size={12} /> Student's Original Preference
+              </h5>
+              <div className="grid grid-cols-2 gap-4">
+                {selectedRequest.preferredDate && (
+                  <div className="space-y-1">
+                    <p className="text-[9px] text-slate-400 font-black uppercase">Requested Date</p>
+                    <p className="text-sm font-bold text-blue-900 capitalize">
+                      {new Date(selectedRequest.preferredDate).toLocaleDateString('en-GB', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric',
+                        timeZone: 'UTC', // Forces UTC to avoid one-day-off errors for date-only strings
+                      })}
+                    </p>
+                  </div>
+                )}
+                {selectedRequest.preferredSlot && (
+                  <div className="space-y-1">
+                    <p className="text-[9px] text-slate-400 font-black uppercase">Requested Slot</p>
+                    <p className="text-sm font-bold text-blue-900 uppercase">
+                      {selectedRequest.preferredSlot}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Appointment Date/Time */}
           <div className="space-y-2">
             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 flex items-center gap-2">
@@ -83,22 +116,6 @@ const AcceptanceModal = ({
               placeholder="Counseling Room – Block B, Room 203"
               value={acceptanceForm.location}
               onChange={(e) => setAcceptanceForm({ ...acceptanceForm, location: e.target.value })}
-            />
-          </div>
-
-          {/* Meeting Link (Optional) */}
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1 flex items-center gap-2">
-              <LinkIcon size={12} className="text-blue-500" /> Virtual Meeting Link (Optional)
-            </label>
-            <input
-              type="url"
-              className="w-full bg-white border border-slate-200 rounded-2xl px-5 py-3.5 text-sm text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all font-bold"
-              placeholder="https://zoom.us/meet/..."
-              value={acceptanceForm.meetingLink}
-              onChange={(e) =>
-                setAcceptanceForm({ ...acceptanceForm, meetingLink: e.target.value })
-              }
             />
           </div>
 

@@ -104,8 +104,8 @@ const CounselingForm = ({ preSelectedCounselorId, initialAvailability, onCancel,
 
       const res = await counselingAPI.createRequest(submitData);
       if (res.success) {
-        setIsSubmitted(true);
         toast.success(res.message || 'Request sent securely');
+        setIsSubmitted(true);
         if (onSuccess) onSuccess();
       }
     } catch (error) {
@@ -272,17 +272,23 @@ const CounselingForm = ({ preSelectedCounselorId, initialAvailability, onCancel,
             <label className="block text-[9px] font-bold text-blue-950/30 uppercase tracking-[0.2em] mb-3 ml-1">
               When Do You Need This Session?
             </label>
-            <div className="relative">
+            <div
+              className="relative cursor-pointer"
+              onClick={(e) => {
+                const input = e.currentTarget.querySelector('input');
+                if (input && input.showPicker) input.showPicker();
+              }}
+            >
               <input
                 type="date"
                 name="preferredDate"
                 value={formData.preferredDate}
-                className="w-full p-4 bg-blue-50/50 border border-teal-50 rounded-xl focus:ring-4 focus:ring-teal-400/10 focus:border-teal-400 outline-none transition-all font-bold text-blue-950 shadow-inner appearance-none h-[58px]"
+                className="w-full p-4 bg-blue-50/50 border border-teal-100 rounded-xl focus:ring-4 focus:ring-teal-400/10 focus:border-teal-400 outline-none transition-all font-bold text-blue-950 shadow-inner h-[58px] cursor-pointer"
                 onChange={handleChange}
                 min={new Date().toISOString().split('T')[0]}
               />
-              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-blue-300">
-                <Calendar size={16} />
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-teal-500">
+                <Calendar size={18} />
               </div>
             </div>
             <p className="text-[9px] text-teal-600 font-medium mt-2 ml-1">

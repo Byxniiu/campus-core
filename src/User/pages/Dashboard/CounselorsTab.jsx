@@ -391,7 +391,7 @@ const CounselorsTab = () => {
                 initialAvailability={formCounselor?.availability}
                 onCancel={closeForm}
                 onSuccess={() => {
-                  setTimeout(closeForm, 2000);
+                  closeForm();
                 }}
               />
             </motion.div>

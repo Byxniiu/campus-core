@@ -9,7 +9,6 @@ import {
   toggleUserStatus,
   getAllSOSAlerts,
   getCounselingRequests,
-  rejectCounselingRequest,
   getHelpRequests,
   acceptHelpRequest,
   rejectHelpRequest,
@@ -22,6 +21,7 @@ import PendingFacultyApprovals from './PendingFacultyApprovals';
 import AddCounselorModal from './AddCounselorModal';
 import AddStaffModal from './AddStaffModal';
 import AcceptanceModal from '../Counselors/AcceptanceModal';
+import RejectionModal from '../Counselors/RejectionModal';
 import { counselingAPI } from '../api/counseling';
 import { sosAPI } from '../api/sos';
 import {
@@ -142,6 +142,7 @@ const AdminCoreDashboard = () => {
   const [showAddCounselorModal, setShowAddCounselorModal] = useState(false);
   const [showAddStaffModal, setShowAddStaffModal] = useState(false);
   const [showAcceptanceModal, setShowAcceptanceModal] = useState(false);
+  const [showRejectionModal, setShowRejectionModal] = useState(false);
   const [adminMessage, setAdminMessage] = useState('');
   const [adminContact, setAdminContact] = useState('');
   const [selectedCounselingRequest, setSelectedCounselingRequest] = useState(null);
@@ -389,21 +390,46 @@ const AdminCoreDashboard = () => {
 
   const handleCounselingAction = async (id, action) => {
     if (action === 'accept') {
-      // Open the acceptance modal instead of directly accepting
       const request = data.counseling_requests.find((r) => r._id === id);
       setSelectedCounselingRequest(request);
+
+      // Pre-populate with student's preference if available
+      let initialDate = '';
+      if (request?.preferredDate) {
+        const d = new Date(request.preferredDate);
+        const datePart = d.toISOString().split('T')[0];
+        initialDate = `${datePart}T09:00`;
+      }
+
+      setAcceptanceForm({
+        ...acceptanceForm,
+        assignedSlot: initialDate,
+      });
       setShowAcceptanceModal(true);
     } else {
-      // Reject directly
-      try {
-        const response = await rejectCounselingRequest(id);
-        if (response.success) {
-          toast.success('Request rejected');
-          fetchData('counseling_requests');
-        }
-      } catch (error) {
-        toast.error(error.message || 'Failed to reject request');
+      const request = data.counseling_requests.find((r) => r._id === id);
+      setSelectedCounselingRequest(request);
+      setShowRejectionModal(true);
+    }
+  };
+
+  const handleSubmitRejection = async (reason) => {
+    setLoading(true);
+    try {
+      const res = await counselingAPI.manageRequest(selectedCounselingRequest._id, {
+        status: 'declined',
+        declineReason: reason,
+      });
+      if (res.success) {
+        toast.success('Request declined successfully');
+        setSelectedCounselingRequest(null);
+        setShowRejectionModal(false);
+        fetchData('counseling_requests');
       }
+    } catch (err) {
+      toast.error(err?.message || err || 'Failed to decline request');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -1397,8 +1423,9 @@ Please bring your student ID. All discussions will remain strictly confidential.
                           </div>
                         </div>
                         <div className="flex gap-2">
-                          {req.status === 'pending' && user?.role === 'counselor' && (
-                            <>
+                          {(req.status === 'pending' || req.status === 'Pending') &&
+                          (user?.role === 'counselor' || user?.role === 'admin') ? (
+                            <div className="flex gap-2">
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -1408,21 +1435,31 @@ Please bring your student ID. All discussions will remain strictly confidential.
                               >
                                 Assign / Accept
                               </button>
-                            </>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCounselingAction(req._id, 'reject');
+                                }}
+                                className="px-4 py-2 bg-red-600/10 hover:bg-red-600 text-red-600 hover:text-white border border-red-200 text-[9px] font-black uppercase rounded-xl transition-all shadow-sm"
+                              >
+                                Decline
+                              </button>
+                            </div>
+                          ) : (
+                            <span
+                              className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase ${
+                                req.status === 'accepted' ||
+                                req.status === 'in-session' ||
+                                req.status === 'completed'
+                                  ? 'bg-emerald-500/10 text-emerald-500'
+                                  : req.status === 'pending' || req.status === 'Pending'
+                                    ? 'bg-amber-500/10 text-amber-500'
+                                    : 'bg-red-500/10 text-red-500'
+                              }`}
+                            >
+                              {req.status}
+                            </span>
                           )}
-                          <span
-                            className={`px-3 py-1.5 rounded-xl text-[9px] font-black uppercase ${
-                              req.status === 'accepted' ||
-                              req.status === 'in-session' ||
-                              req.status === 'completed'
-                                ? 'bg-emerald-500/10 text-emerald-500'
-                                : req.status === 'pending'
-                                  ? 'bg-amber-500/10 text-amber-500'
-                                  : 'bg-red-500/10 text-red-500'
-                            }`}
-                          >
-                            {req.status}
-                          </span>
                         </div>
                       </div>
                       <p className="text-sm text-slate-600 mb-4 line-clamp-3 leading-relaxed">
@@ -2198,6 +2235,14 @@ Please bring your student ID. All discussions will remain strictly confidential.
         setAcceptanceForm={setAcceptanceForm}
         onSubmit={handleSubmitAcceptance}
         onAutoGenerate={handleAutoGenerateMessage}
+        isUpdating={loading}
+        selectedRequest={selectedCounselingRequest}
+      />
+
+      <RejectionModal
+        isOpen={showRejectionModal}
+        onClose={() => setShowRejectionModal(false)}
+        onSubmit={handleSubmitRejection}
         isUpdating={loading}
       />
     </div>
