@@ -165,9 +165,15 @@ const CounselingForm = ({ preSelectedCounselorId, initialAvailability, onCancel,
           {onCancel && (
             <button
               onClick={onCancel}
-              className="text-blue-950/20 hover:text-red-500 transition-colors"
+              className="group flex items-center gap-2 text-blue-950/40 hover:text-teal-600 transition-all"
             >
-              <ChevronLeft className="rotate-90" size={24} />
+              <div className="w-8 h-8 rounded-full border border-teal-50 flex items-center justify-center group-hover:bg-teal-50 transition-colors">
+                <ChevronLeft
+                  size={18}
+                  className="group-hover:-translate-x-0.5 transition-transform"
+                />
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Back</span>
             </button>
           )}
         </div>
@@ -399,11 +405,20 @@ const CounselingForm = ({ preSelectedCounselorId, initialAvailability, onCancel,
           ></textarea>
         </div>
 
-        <div className="pt-4">
+        <div className="pt-8 flex flex-col sm:flex-row gap-4">
+          {onCancel && (
+            <button
+              type="button"
+              onClick={onCancel}
+              className="flex-1 py-5 border border-teal-100 text-blue-950/40 font-bold rounded-2xl hover:bg-slate-50 hover:text-red-500 transition-all flex justify-center items-center gap-2 active:scale-[0.98]"
+            >
+              <span className="uppercase tracking-[0.2em] text-[10px] font-bold">Cancel</span>
+            </button>
+          )}
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-5 bg-blue-950 text-white font-bold rounded-2xl shadow-xl shadow-teal-100/30 hover:bg-teal-600 transition-all flex justify-center items-center gap-4 active:scale-[0.98] disabled:opacity-50"
+            className={`${onCancel ? 'flex-[2]' : 'w-full'} py-5 bg-blue-950 text-white font-bold rounded-2xl shadow-xl shadow-teal-100/30 hover:bg-teal-600 transition-all flex justify-center items-center gap-4 active:scale-[0.98] disabled:opacity-50`}
           >
             {isLoading ? (
               <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>

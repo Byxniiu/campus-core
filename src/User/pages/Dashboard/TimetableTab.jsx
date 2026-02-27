@@ -20,7 +20,7 @@ const TimetableTab = () => {
         }
       } catch (error) {
         console.error('Failed to fetch timetable:', error);
-        toast.error('Failed to load schedule');
+        toast.error('Failed to load timetable');
       } finally {
         setLoading(false);
       }

@@ -54,29 +54,29 @@ const SignInPage = () => {
     setIsLoading(true);
 
     try {
-      console.log('🔐 Attempting login with:', formData.identifier);
+      console.log(' Attempting login with:', formData.identifier);
       const response = await authAPI.login(formData.identifier, formData.password);
 
-      console.log('📦 Login response:', response);
-      console.log('✅ Response success:', response.success);
-      console.log('📊 Response data:', response.data);
+      console.log(' Login response:', response);
+      console.log(' Response success:', response.success);
+      console.log(' Response data:', response.data);
 
       if (response.success) {
         const { user, accessToken, refreshToken } = response.data;
 
-        console.log('👤 User data:', user);
-        console.log('🔑 Access token exists:', !!accessToken);
-        console.log('🔄 Refresh token exists:', !!refreshToken);
+        console.log(' User data:', user);
+        console.log(' Access token exists:', !!accessToken);
+        console.log(' Refresh token exists:', !!refreshToken);
 
-        console.log('💾 Calling login() to save to store...');
+        console.log(' Calling login() to save to store...');
         login(user, accessToken, refreshToken);
 
         // Verify it was saved
         setTimeout(() => {
           const stored = localStorage.getItem('student-auth');
-          console.log('🗄️ Stored in localStorage (student-auth):', stored ? 'YES' : 'NO');
+          console.log(' Stored in localStorage (student-auth):', stored ? 'YES' : 'NO');
           if (stored) {
-            console.log('📄 Storage content:', JSON.parse(stored));
+            console.log(' Storage content:', JSON.parse(stored));
           }
         }, 100);
 
@@ -88,10 +88,10 @@ const SignInPage = () => {
           navigate('/');
         }
       } else {
-        console.error('❌ Response success was false');
+        console.error(' Response success was false');
       }
     } catch (error) {
-      console.error('❌ Login error:', error);
+      console.error(' Login error:', error);
       toast.error(error.message || 'Invalid credentials or login failed');
     } finally {
       setIsLoading(false);

@@ -76,18 +76,18 @@ const StudentHomePage = () => {
       tooltip: 'Expert Mental Health & Career Support',
     },
     {
-      id: 'Administrative',
+      id: 'Staffs',
       icon: <UserCircle size={20} />,
-      tooltip: 'Institutional Support & Administrative Hub',
+      tooltip: 'Institutional Support & Staff Hub',
     },
     {
       id: 'Academic',
       icon: <BookOpen size={20} />,
       tooltip: 'Curated Study Materials & Dept. Catalog',
     },
-    { id: 'Schedule', icon: <Clock size={20} />, tooltip: 'Personal Timetable & Weekly Routine' },
+    { id: 'Timetable', icon: <Clock size={20} />, tooltip: 'Personal Timetable & Weekly Routine' },
     {
-      id: 'Request Log',
+      id: 'Requests',
       icon: <FileText size={20} />,
       tooltip: 'My Submitted Institutional Requests',
     },
@@ -103,15 +103,15 @@ const StudentHomePage = () => {
         return <EventsTab />;
       case 'Counseling':
         return <CounselorsTab />;
-      case 'Administrative':
+      case 'Staffs':
         return <StaffTab />;
       case 'My Profile':
         return <ProfileTab />;
-      case 'Request Log':
+      case 'Requests':
         return <MyRequestsTab />;
       case 'Academic':
         return <StudyMaterialsTab />;
-      case 'Schedule':
+      case 'Timetable':
         return <TimetableTab />;
       default:
         return <SOSTab />;

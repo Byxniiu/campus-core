@@ -110,7 +110,7 @@ const StaffTab = () => {
           className="mb-14 text-blue-950/40 hover:text-teal-600 flex items-center gap-3 font-bold text-[10px] uppercase tracking-[0.2em] transition-all group"
         >
           <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" /> Back
-          to Administrative Hub
+          to Staff Hub
         </motion.button>
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-12 mb-16">
           <div className="flex gap-10 items-center">
