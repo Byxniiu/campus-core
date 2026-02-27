@@ -278,8 +278,8 @@ function PortalList({ onSelect }) {
   const portals = [
     { name: 'Student Portal', path: '/student-signin', icon: <Users size={16} /> },
     { name: 'Faculty Portal', path: '/faculty-login', icon: <Activity size={16} /> },
-    { name: 'Counsellor Node', path: '/counselor-login', icon: <Shield size={16} /> },
-    { name: 'Staff Network', path: '/non-teaching-login', icon: <Globe size={16} /> },
+    { name: 'Counselor Node', path: '/admin-login', icon: <Shield size={16} /> },
+    { name: 'Staff Network', path: '/admin-login', icon: <Globe size={16} /> },
   ];
 
   return (
